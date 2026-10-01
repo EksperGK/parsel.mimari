@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArchiGen CAD - Mimari Parsel, Kütle & Kat Planı Motoru</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    }
+
+    body {
+      background-color: #121418;
+      color: #f1f5f9;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* 1. ÜST İNCE MAVİ ŞERİT (TOPBAR) */
+    .topbar {
+      height: 52px;
+      background: linear-gradient(90deg, #0b1528 0%, #0f1d38 100%);
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 50;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 210px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: #2563eb;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #fff;
+      font-size: 16px;
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+    }
+
+    .brand-sub {
+      font-size: 10px;
+      color: #64748b;
+      display: block;
+    }
+
+    /* TKGM Yatay Form Menüsü */
+    .tkgm-form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .form-group select,
+    .form-group input {
+      height: 26px;
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      color: #f8fafc;
+      font-size: 11px;
+      padding: 0 6px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-group select { cursor: pointer; min-width: 105px; }
+    .form-group input { width: 65px; }
+
+    .btn-fetch {
+      height: 28px;
+      padding: 0 12px;
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 10px;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-fetch:hover {
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
+    }
+
+    /* Aşama Seçici Sekmeler (Vaziyet & Kütle vs Kat Planı) */
+    .stage-switch {
+      display: flex;
+      background: #0f172a;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      padding: 2px;
+    }
+
+    .stage-btn {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .stage-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 220px;
+      justify-content: flex-end;
+    }
+
+    /* 2D / 3D Görünüm Butonları */
+    .view-switch {
+      display: flex;
+      background: #1e293b;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      padding: 2px;
+    }
+
+    .view-btn {
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .view-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    .btn-export {
+      height: 28px;
+      padding: 0 10px;
+      background: #1e293b;
+      border: 1px solid #3b82f6;
+      color: #38bdf8;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-export:hover {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    /* 2. ANA ÇALIŞMA ALANI & CANVAS */
+    .workspace {
+      flex: 1;
+      position: relative;
+      background-color: #111419;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    /* Sol Üst: Kat Seçici (Kat Planı Modunda Görünür) */
+    .floor-selector {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 4px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 20;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .floor-btn {
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: #1e293b;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.15s;
+    }
+
+    .floor-btn:hover { background: #334155; color: #f1f5f9; }
+
+    .floor-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+
+    .floor-tag {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    /* Sol Üst: Kuzey Oku (Vaziyet Planında Görünür) */
+    .compass {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      width: 40px;
+      height: 40px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid #334155;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .compass-arrow {
+      position: relative;
+      width: 2px;
+      height: 24px;
+      background: #475569;
+    }
+
+    .compass-arrow::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -4px;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 10px solid #ef4444;
+    }
+
+    .compass-label {
+      position: absolute;
+      top: 2px;
+      font-size: 7px;
+      font-weight: bold;
+      color: #ef4444;
+    }
+
+    /* Sağ Üst Parsel & Kütle Künyesi Kartı (HUD) */
+    .hud-card {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 290px;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      z-index: 20;
+    }
+
+    .hud-header {
+      background: #1e293b;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+
+    .hud-header span { color: #38bdf8; }
+
+    .hud-body {
+      padding: 10px 12px;
+      font-size: 11px;
+    }
+
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .hud-row .label { color: #94a3b8; }
+    .hud-row .val { font-weight: 600; color: #f1f5f9; text-align: right; }
+
+    .room-summary {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 10px;
+    }
+
+    .room-item {
+      display: flex;
+      justify-content: space-between;
+      color: #cbd5e1;
+    }
+
+    /* Sağ Alt CAD Kontrolleri */
+    .cad-tools {
+      position: absolute;
+      bottom: 90px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #334155;
+      padding: 4px;
+      border-radius: 8px;
+      z-index: 20;
+    }
+
+    .tool-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 5px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .tool-btn:hover { background: #38bdf8; color: #0f172a; }
+
+    /* 3. ALT KONTROL BARI (STAGE 1: VAZİYET & İMAR KÜTLE MERKEZİ) */
+    .site-control-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid #2563eb;
+      border-radius: 12px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 30;
+      max-width: 95vw;
+    }
+
+    .setback-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+    }
+
+    .setback-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+    }
+
+    .setback-item input {
+      width: 36px;
+      height: 22px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #fff;
+      border-radius: 3px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .mode-selector {
+      display: flex;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .mode-btn {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .mode-btn.active { background: #2563eb; color: #ffffff; }
+
+    .form-selector {
+      display: flex;
+      gap: 3px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .form-btn {
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #cbd5e1;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .form-btn.active { background: #f59e0b; color: #0f172a; font-weight: bold; }
+
+    .btn-generate {
+      height: 30px;
+      padding: 0 12px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #0f172a;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .alt-chips { display: flex; gap: 3px; }
+
+    .alt-chip {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .alt-chip.active { background: #38bdf8; border-color: #38bdf8; color: #0f172a; }
+
+    .btn-step-advance {
+      height: 32px;
+      padding: 0 14px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 4. ALT KONTROL BARI (STAGE 2: KAT PLANI KONTROL MERKEZİ) */
+    .floor-control-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid #10b981;
+      border-radius: 12px;
+      padding: 8px 16px;
+      display: none;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 30;
+      max-width: 95vw;
+    }
+
+    /* Pop-up Menü (Kenara Tıklandığında) */
+    .edge-popup {
+      position: absolute;
+      display: none;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      padding: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      min-width: 170px;
+    }
+
+    .edge-popup-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: #38bdf8;
+      padding-bottom: 5px;
+      margin-bottom: 5px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .edge-popup-btn {
+      width: 100%;
+      padding: 5px 8px;
+      margin-bottom: 3px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      color: #f1f5f9;
+      font-size: 11px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .edge-popup-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+      font-weight: bold;
+    }
+
+    /* Toast Bildirim Kutusu */
+    .toast-msg {
+      position: absolute;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(16, 185, 129, 0.95);
+      color: #ffffff;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      display: none;
+      z-index: 100;
+      transition: all 0.3s;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Bildirim -->
+  <div class="toast-msg" id="toast">Parsel başarıyla yüklendi!</div>
+
+  <!-- 1. ÜST İNCE MAVİ ŞERİT -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">📐</div>
+      <div>
+        <div class="brand-title">ArchiGen CAD</div>
+        <span class="brand-sub">Mimari Parsel & Generative Motor</span>
+      </div>
+    </div>
+
+    <!-- TKGM Yatay Form Menüsü -->
+    <div class="tkgm-form">
+      <div class="form-group">
+        <label>İl</label>
+        <select id="sel-il" onchange="onIlChange()">
+          <option value="16" selected>Bursa (16)</option>
+          <option value="34">İstanbul (34)</option>
+          <option value="06">Ankara (06)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>İlçe</label>
+        <select id="sel-ilce">
+          <option value="nilufer" selected>Nilüfer</option>
+          <option value="osmangazi">Osmangazi</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Mahalle</label>
+        <select id="sel-mahalle">
+          <option value="minareli" selected>Minareli Çavuş</option>
+          <option value="odunluk">Odunluk</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Ada</label>
+        <input type="text" id="inp-ada" value="1483" />
+      </div>
+
+      <div class="form-group">
+        <label>Parsel</label>
+        <input type="text" id="inp-parsel" value="8" />
+      </div>
+
+      <button class="btn-fetch" onclick="fetchParcel()">
+        <span>⚡</span> Parseli Getir
+      </button>
+    </div>
+
+    <!-- Çalışma Aşamaları Sekmesi (Vaziyet Planı & Kütle vs Kat Planı) -->
+    <div class="stage-switch">
+      <button class="stage-btn active" id="btnStageSite" onclick="setAppStage('site')">
+        <span>🗺️</span> 1. Vaziyet & Kütle
+      </button>
+      <button class="stage-btn" id="btnStageFloor" onclick="setAppStage('floor')">
+        <span>📋</span> 2. Kat Planı
+      </button>
+    </div>
+
+    <!-- Sağ Üst: Çıktı & Görünüm -->
+    <div class="top-actions">
+      <div class="view-switch" id="viewSwitchWrapper">
+        <button class="view-btn active" id="btnView2D" onclick="setViewMode('2D')">2D Plan</button>
+        <button class="view-btn" id="btnView3D" onclick="setViewMode('3D')">🧊 3D</button>
+      </div>
+      <button class="btn-export" onclick="exportDXF()">
+        <span>⬇</span> 1:1 DXF İndir
+      </button>
+      <button class="btn-export" onclick="exportIFC()">
+        <span>🧊</span> IFC (BIM)
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. ÇALIŞMA ALANI & CANVAS -->
+  <main class="workspace" id="workspace">
+
+    <!-- Sol Üst: Kuzey Oku (Vaziyet Planında Görünür) -->
+    <div class="compass" id="compass">
+      <span class="compass-label">N</span>
+      <div class="compass-arrow"></div>
+    </div>
+
+    <!-- Sol Üst: Kat Seçici (Kat Planı Modunda Görünür) -->
+    <div class="floor-selector" id="floorSelector">
+      <button class="floor-btn" id="fbtn-roof" onclick="selectFloor('roof')">
+        <span>🏠 Çatı Katı</span>
+        <span class="floor-tag">+6.00</span>
+      </button>
+      <button class="floor-btn" id="fbtn-1" onclick="selectFloor('1')">
+        <span>🛏️ 1. Kat (Yatak O.)</span>
+        <span class="floor-tag">+3.00</span>
+      </button>
+      <button class="floor-btn active" id="fbtn-ground" onclick="selectFloor('ground')">
+        <span>🛋️ Zemin Kat (Yaşam)</span>
+        <span class="floor-tag">±0.00</span>
+      </button>
+      <button class="floor-btn" id="fbtn-basement" onclick="selectFloor('basement')">
+        <span>📦 Bodrum Kat</span>
+        <span class="floor-tag">-3.00</span>
+      </button>
+    </div>
+
+    <!-- Tıklanan Kenarda Açılan Pop-up Menü -->
+    <div class="edge-popup" id="edgePopup">
+      <div class="edge-popup-header">
+        <span id="popup-edge-title">Kenar [A] (40.25 m)</span>
+        <span style="cursor:pointer; color:#94a3b8;" onclick="closeEdgePopup()">✕</span>
+      </div>
+      <button class="edge-popup-btn" id="pop-btn-yol" onclick="setEdgeType('Yol')">
+        <span>🛣️</span> Yol Cephesi (Ön Bahçe)
+      </button>
+      <button class="edge-popup-btn" id="pop-btn-komsu" onclick="setEdgeType('Komşu')">
+        <span>🏘️</span> Komşu Parsel (Yan Bahçe)
+      </button>
+      <button class="edge-popup-btn" id="pop-btn-arka" onclick="setEdgeType('Arka')">
+        <span>🌳</span> Arka Bahçe Çekmesi
+      </button>
+    </div>
+
+    <!-- Sağ Üst Künye ve İmar HUD Kartı -->
+    <div class="hud-card" id="hud">
+      <div class="hud-header">
+        <div id="hud-main-title">PARSEL & İMAR KÜNYESİ</div>
+        <span id="hud-status-tag">CANLI ANALİZ</span>
+      </div>
+      <div class="hud-body" id="hud-content"></div>
+    </div>
+
+    <!-- Çizim Canvas'ı -->
+    <canvas id="cadCanvas"></canvas>
+
+    <!-- Sağ Alt CAD Gezinme Araçları -->
+    <div class="cad-tools">
+      <button class="tool-btn" title="Yakınlaş" onclick="zoom(1.2)">➕</button>
+      <button class="tool-btn" title="Uzaklaş" onclick="zoom(0.8)">➖</button>
+      <button class="tool-btn" title="Merkeze Odakla" onclick="resetActiveView()">🎯</button>
+      <button class="tool-btn" title="Izgarayı Aç/Kapa" onclick="toggleGrid()">⊞</button>
+      <button class="tool-btn" title="Ölçüleri Aç/Kapa" onclick="toggleDimensions()">📐</button>
+    </div>
+
+    <!-- 3. ALT KONTROL BARI (STAGE 1: VAZİYET & İMAR KÜTLE MERKEZİ) -->
+    <div class="site-control-bar" id="siteControlBar">
+      <div class="setback-group">
+        <div class="setback-item">
+          <span style="color:#38bdf8;">🛣️ Ön:</span>
+          <input type="number" id="inp-front" value="5" onchange="onSetbackChange()" />
+          <span style="color:#64748b;">m</span>
+        </div>
+        <div class="setback-item">
+          <span style="color:#fbbf24;">🏘️ Yan:</span>
+          <input type="number" id="inp-side" value="3" onchange="onSetbackChange()" />
+          <span style="color:#64748b;">m</span>
+        </div>
+        <div class="setback-item">
+          <span style="color:#c084fc;">🌳 Arka:</span>
+          <input type="number" id="inp-rear" value="3" onchange="onSetbackChange()" />
+          <span style="color:#64748b;">m</span>
+        </div>
+      </div>
+
+      <div class="mode-selector">
+        <button class="mode-btn active" id="btnModeSingle" onclick="setMassMode('single')">
+          🏢 Tek Blok
+        </button>
+        <button class="mode-btn" id="btnModeMulti" onclick="setMassMode('multi')">
+          🏘️ 4 Villa
+        </button>
+      </div>
+
+      <div class="form-selector" id="formSelector">
+        <button class="form-btn active" id="fbtn-L" onclick="setFormShape('L')">L-Form</button>
+        <button class="form-btn" id="fbtn-U" onclick="setFormShape('U')">U-Form</button>
+        <button class="form-btn" id="fbtn-I" onclick="setFormShape('I')">I-Form</button>
+        <button class="form-btn" id="fbtn-Z" onclick="setFormShape('Z')">Z-Form</button>
+      </div>
+
+      <button class="btn-generate" onclick="generateNewAlternatives()">
+        <span>🎲</span> Alternatif Türet
+      </button>
+
+      <div class="alt-chips" id="altChips">
+        <div class="alt-chip active" onclick="selectAlt(0)">1</div>
+        <div class="alt-chip" onclick="selectAlt(1)">2</div>
+        <div class="alt-chip" onclick="selectAlt(2)">3</div>
+        <div class="alt-chip" onclick="selectAlt(3)">4</div>
+        <div class="alt-chip" onclick="selectAlt(4)">5</div>
+      </div>
+
+      <button class="btn-step-advance" onclick="setAppStage('floor')">
+        <span>📋</span> 2. Kat Planına Geç ➔
+      </button>
+    </div>
+
+    <!-- 4. ALT KONTROL BARI (STAGE 2: KAT PLANI KONTROL MERKEZİ) -->
+    <div class="floor-control-bar" id="floorControlBar">
+      <button class="btn-generate" onclick="generateNewPlanAlternatives()">
+        <span>🎲</span> Plan Kurgusu Türet
+      </button>
+
+      <div class="alt-chips" id="planChips">
+        <div class="alt-chip active" onclick="selectPlanAlt(0)">A1</div>
+        <div class="alt-chip" onclick="selectPlanAlt(1)">A2</div>
+        <div class="alt-chip" onclick="selectPlanAlt(2)">A3</div>
+        <div class="alt-chip" onclick="selectPlanAlt(3)">A4</div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:4px 8px; border-radius:6px; border:1px solid #334155;">
+        <span style="font-size:11px; color:#10b981; font-weight:bold;">🔒 Merdiven Kilitli (Tüm Katlar)</span>
+      </div>
+
+      <button class="btn-step-advance" style="background:#2563eb" onclick="setAppStage('site')">
+        <span>🗺️</span> 1. Vaziyet Planına Dön
+      </button>
+    </div>
+  </main>
+
+  <script>
+    const LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+    const SAMPLE_PARCELS = [
+      {
+        city: "Bursa",
+        district: "Nilüfer",
+        neighborhood: "Minareli Çavuş",
+        ada: "1483",
+        parsel: "8",
+        area: 1485.60,
+        type: "Arsa (4 Villalık İmar)",
+        sheet: "H21-C-05-A",
+        localCoords: [
+          { x: 0.0, y: 0.0, label: "P1" },
+          { x: 40.25, y: -2.10, label: "P2" },
+          { x: 44.80, y: 35.80, label: "P3" },
+          { x: 8.50, y: 41.20, label: "P4" },
+          { x: -1.50, y: 26.30, label: "P5" }
+        ],
+        edgeTypes: ["Yol", "Komşu", "Arka", "Komşu", "Komşu"]
+      },
+      {
+        city: "İstanbul",
+        district: "Kadıköy",
+        neighborhood: "Caddebostan",
+        ada: "1042",
+        parsel: "12",
+        area: 840.20,
+        type: "Arsa (Konut/Ticari)",
+        sheet: "G22-B-01-C",
+        localCoords: [
+          { x: 0.0, y: 0.0, label: "P1" },
+          { x: 28.50, y: 0.0, label: "P2" },
+          { x: 29.20, y: 29.50, label: "P3" },
+          { x: 0.80, y: 29.10, label: "P4" }
+        ],
+        edgeTypes: ["Yol", "Komşu", "Arka", "Yol"]
+      }
+    ];
+
+    let currentSampleIdx = 0;
+    let activeParcel = SAMPLE_PARCELS[0];
+    let selectedEdgeIdx = null;
+
+    let appStage = "site";
+    let viewMode = "2D";
+    let currentMassMode = "single";
+    let currentShape = "L";
+    let currentAltIdx = 0;
+    let currentPlanAlt = 0;
+    let activeFloor = "ground";
+
+    let showGrid = true;
+    let showDimensions = true;
+
+    let setbackDistances = { Yol: 5.0, Komşu: 3.0, Arka: 3.0 };
+
+    const canvas = document.getElementById("cadCanvas");
+    const ctx = canvas.getContext("2d");
+    let camera = { x: 0, y: 0, zoom: 7.5 };
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    let massAlternatives = [];
+
+    function generateAlternativesList() {
+      massAlternatives = [];
+      for (let i = 0; i < 5; i++) {
+        const rot = (i * 32) * (Math.PI / 180);
+        const scaleX = 0.82 + (i * 0.11);
+        const scaleY = 0.78 + ((4 - i) * 0.12);
+        const offsetX = (i % 2 === 0 ? 1 : -1) * (i * 2.0);
+        const offsetY = (i % 3 === 0 ? -1 : 1) * (i * 1.6);
+        massAlternatives.push({
+          rot, scaleX, scaleY, offsetX, offsetY,
+          area: (235 + i * 42).toFixed(1),
+          taks: (0.16 + i * 0.03).toFixed(2)
+        });
+      }
+    }
+
+    const groundFloorAlternatives = [
+      {
+        name: "Geniş Salon + Ayrı Mutfak + Çalışma Odası",
+        rooms: [
+          { name: "SALON + YEMEK", area: 52.4, x: 10.20, y: 0.20, w: 14.10, h: 8.10, color: "#1e3a8a" },
+          { name: "MUTFAK", area: 21.6, x: 0.20, y: 8.70, w: 9.60, h: 4.80, color: "#065f46" },
+          { name: "ÇALIŞMA ODASI", area: 18.5, x: 0.20, y: 13.70, w: 9.60, h: 4.10, color: "#78350f" },
+          { name: "GİRİŞ & VESTİYER", area: 14.2, x: 4.80, y: 0.20, w: 5.20, h: 4.10, color: "#374151" },
+          { name: "MİSAFİR WC", area: 6.8, x: 0.20, y: 0.20, w: 4.40, h: 4.10, color: "#4c1d95" },
+          { name: "MERDİVEN EVİ", area: 13.5, x: 4.80, y: 4.50, w: 5.20, h: 4.00, color: "#b45309", isStairs: true }
+        ]
+      },
+      {
+        name: "Ada Mutfaklı Açık Konsept + Misafir Odası",
+        rooms: [
+          { name: "AÇIK YAŞAM ALANI", area: 68.2, x: 10.20, y: 0.20, w: 14.10, h: 8.10, color: "#1e3a8a" },
+          { name: "MİSAFİR SÜİTİ", area: 24.0, x: 0.20, y: 8.70, w: 9.60, h: 5.00, color: "#065f46" },
+          { name: "HİZMETLİ / KİLER", area: 12.5, x: 0.20, y: 13.90, w: 9.60, h: 3.90, color: "#78350f" },
+          { name: "GİRİŞ & HOL", area: 16.0, x: 4.80, y: 0.20, w: 5.20, h: 4.10, color: "#374151" },
+          { name: "BANYO", area: 7.2, x: 0.20, y: 0.20, w: 4.40, h: 4.10, color: "#4c1d95" },
+          { name: "MERDİVEN EVİ", area: 13.5, x: 4.80, y: 4.50, w: 5.20, h: 4.00, color: "#b45309", isStairs: true }
+        ]
+      }
+    ];
+
+    const firstFloorRooms = [
+      { name: "EBEVEYN YATAK ODASI", area: 32.5, x: 10.20, y: 0.20, w: 8.50, h: 8.10, color: "#831843" },
+      { name: "EBEVEYN BANYO & GİYİNME", area: 16.2, x: 18.90, y: 0.20, w: 5.40, h: 8.10, color: "#701a75" },
+      { name: "YATAK ODASI 1", area: 19.5, x: 0.20, y: 8.70, w: 9.60, h: 4.60, color: "#1e3a8a" },
+      { name: "YATAK ODASI 2", area: 18.0, x: 0.20, y: 13.50, w: 9.60, h: 4.30, color: "#1e3a8a" },
+      { name: "KAT BANYOSU", area: 8.4, x: 0.20, y: 0.20, w: 4.40, h: 4.10, color: "#4c1d95" },
+      { name: "KAT HOLÜ", area: 15.0, x: 4.80, y: 0.20, w: 5.20, h: 4.10, color: "#374151" },
+      { name: "MERDİVEN BOŞLUĞU", area: 13.5, x: 4.80, y: 4.50, w: 5.20, h: 4.00, color: "#b45309", isStairs: true }
+    ];
+
+    function init() {
+      resizeCanvas();
+      generateAlternativesList();
+      resetActiveView();
+      setupEvents();
+      updateHUD();
+    }
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      draw();
+    }
+    window.addEventListener("resize", resizeCanvas);
+
+    function setupEvents() {
+      canvas.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        dragStart.x = e.clientX - camera.x;
+        dragStart.y = e.clientY - camera.y;
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        camera.x = e.clientX - dragStart.x;
+        camera.y = e.clientY - dragStart.y;
+        draw();
+      });
+
+      window.addEventListener("mouseup", () => isDragging = false);
+
+      canvas.addEventListener("click", (e) => {
+        if (appStage !== "site") return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const clickedEdge = findClickedEdge(mx, my);
+        if (clickedEdge !== null) {
+          openEdgePopup(clickedEdge, e.clientX, e.clientY);
+        } else {
+          closeEdgePopup();
+        }
+      });
+
+      canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.15 : 0.85;
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        camera.x = mx - (mx - camera.x) * factor;
+        camera.y = my - (my - camera.y) * factor;
+        camera.zoom *= factor;
+        draw();
+      }, { passive: false });
+    }
+
+    function findClickedEdge(screenX, screenY) {
+      const pts = activeParcel.localCoords;
+      const threshold = 16;
+      for (let i = 0; i < pts.length; i++) {
+        const p1 = worldToScreen(pts[i].x, pts[i].y);
+        const p2 = worldToScreen(pts[(i + 1) % pts.length].x, pts[(i + 1) % pts.length].y);
+        const dist = distToSegment({ x: screenX, y: screenY }, p1, p2);
+        if (dist <= threshold) return i;
+      }
+      return null;
+    }
+
+    function distToSegment(p, v, w) {
+      const l2 = (v.x - w.x)**2 + (v.y - w.y)**2;
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
+
+    function worldToScreen(x, y) {
+      return {
+        x: camera.x + x * camera.zoom,
+        y: camera.y - y * camera.zoom
+      };
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (showGrid) drawGrid();
+      if (appStage === "site") {
+        drawSitePlan();
+      } else {
+        drawFloorPlan();
+      }
+    }
+
+    function drawSitePlan() {
+      const pts = activeParcel.localCoords;
+      if (!pts || pts.length < 3) return;
+
+      const setbackPoly = computeSetbackPolygon(pts);
+      if (setbackPoly && setbackPoly.length >= 3) {
+        drawPolygon(setbackPoly, "rgba(16, 185, 129, 0.08)", "#10b981", 2, true);
+      }
+
+      for (let i = 0; i < pts.length; i++) {
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % pts.length];
+        const sp1 = worldToScreen(p1.x, p1.y);
+        const sp2 = worldToScreen(p2.x, p2.y);
+        const type = activeParcel.edgeTypes[i] || "Komşu";
+
+        ctx.beginPath();
+        ctx.moveTo(sp1.x, sp1.y);
+        ctx.lineTo(sp2.x, sp2.y);
+        ctx.strokeStyle = type === "Yol" ? "#0284c7" : (type === "Arka" ? "#8b5cf6" : "#f59e0b");
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+      }
+
+      if (showDimensions) {
+        drawEdgeBadges(pts);
+      }
+
+      if (currentMassMode === "single") {
+        drawSingleMass();
+      } else {
+        drawMultiVillas();
+      }
+
+      pts.forEach((p, idx) => {
+        const sp = worldToScreen(p.x, p.y);
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "#f59e0b";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+    }
+
+    function drawSingleMass() {
+      const alt = massAlternatives[currentAltIdx] || massAlternatives[0];
+      const cx = 20.0 + alt.offsetX;
+      const cy = 18.0 + alt.offsetY;
+
+      let localPts = [];
+      if (currentShape === "L") {
+        localPts = [
+          { x: -10 * alt.scaleX, y: -8 * alt.scaleY },
+          { x: 10 * alt.scaleX, y: -8 * alt.scaleY },
+          { x: 10 * alt.scaleX, y: -2 * alt.scaleY },
+          { x: -3 * alt.scaleX, y: -2 * alt.scaleY },
+          { x: -3 * alt.scaleX, y: 8 * alt.scaleY },
+          { x: -10 * alt.scaleX, y: 8 * alt.scaleY }
+        ];
+      } else if (currentShape === "U") {
+        localPts = [
+          { x: -10, y: -7 }, { x: 10, y: -7 }, { x: 10, y: 7 }, { x: 5, y: 7 },
+          { x: 5, y: -1 }, { x: -5, y: -1 }, { x: -5, y: 7 }, { x: -10, y: 7 }
+        ];
+      } else if (currentShape === "I") {
+        localPts = [
+          { x: -12 * alt.scaleX, y: -5 * alt.scaleY },
+          { x: 12 * alt.scaleX, y: -5 * alt.scaleY },
+          { x: 12 * alt.scaleX, y: 5 * alt.scaleY },
+          { x: -12 * alt.scaleX, y: 5 * alt.scaleY }
+        ];
+      } else {
+        localPts = [
+          { x: -10, y: -7 }, { x: 3, y: -7 }, { x: 3, y: -1 }, { x: 10, y: -1 },
+          { x: 10, y: 7 }, { x: -3, y: 7 }, { x: -3, y: 1 }, { x: -10, y: 1 }
+        ];
+      }
+
+      const worldMass = localPts.map(p => {
+        const rx = p.x * Math.cos(alt.rot) - p.y * Math.sin(alt.rot);
+        const ry = p.x * Math.sin(alt.rot) + p.y * Math.cos(alt.rot);
+        return { x: cx + rx, y: cy + ry };
+      });
+
+      if (viewMode === "3D") {
+        draw3DExtrusion(worldMass, 7.5);
+      } else {
+        drawPolygon(worldMass, "rgba(245, 158, 11, 0.35)", "#f59e0b", 2.5, false);
+      }
+    }
+
+    function drawMultiVillas() {
+      const villas = [
+        { x: 12.0, y: 12.0, w: 9.5, h: 10.5, name: "VİLLA A" },
+        { x: 28.0, y: 10.5, w: 9.5, h: 10.5, name: "VİLLA B" },
+        { x: 26.5, y: 26.0, w: 9.5, h: 10.5, name: "VİLLA C" },
+        { x: 11.5, y: 27.5, w: 9.5, h: 10.5, name: "VİLLA D" }
+      ];
+
+      villas.forEach(v => {
+        const poly = [
+          { x: v.x - v.w/2, y: v.y - v.h/2 },
+          { x: v.x + v.w/2, y: v.y - v.h/2 },
+          { x: v.x + v.w/2, y: v.y + v.h/2 },
+          { x: v.x - v.w/2, y: v.y + v.h/2 }
+        ];
+        if (viewMode === "3D") {
+          draw3DExtrusion(poly, 6.8);
+        } else {
+          drawPolygon(poly, "rgba(245, 158, 11, 0.35)", "#f59e0b", 2, false);
+          const sp = worldToScreen(v.x, v.y);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 10px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(v.name, sp.x, sp.y);
+        }
+      });
+    }
+
+    function draw3DExtrusion(basePts, heightMeters) {
+      const hScreen = heightMeters * camera.zoom * 0.8;
+      const offX = hScreen * 0.5;
+      const offY = -hScreen * 0.8;
+
+      const topPts = basePts.map(p => {
+        const sp = worldToScreen(p.x, p.y);
+        return { x: sp.x + offX, y: sp.y + offY };
+      });
+
+      ctx.save();
+      for (let i = 0; i < basePts.length; i++) {
+        const b1 = worldToScreen(basePts[i].x, basePts[i].y);
+        const b2 = worldToScreen(basePts[(i+1)%basePts.length].x, basePts[(i+1)%basePts.length].y);
+        const t1 = topPts[i];
+        const t2 = topPts[(i+1)%basePts.length];
+
+        ctx.beginPath();
+        ctx.moveTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y);
+        ctx.lineTo(t2.x, t2.y); ctx.lineTo(t1.x, t1.y);
+        ctx.closePath();
+        ctx.fillStyle = (i % 2 === 0) ? "#b45309" : "#78350f";
+        ctx.fill();
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(topPts[0].x, topPts[0].y);
+      for (let i = 1; i < topPts.length; i++) ctx.lineTo(topPts[i].x, topPts[i].y);
+      ctx.closePath();
+      ctx.fillStyle = "#f59e0b";
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFloorPlan() {
+      const outerWalls = [
+        { x: 0.0, y: 0.0 }, { x: 24.50, y: 0.0 }, { x: 24.50, y: 8.50 },
+        { x: 10.00, y: 8.50 }, { x: 10.00, y: 18.00 }, { x: 0.0, y: 18.00 }
+      ];
+
+      const activeRooms = (activeFloor === "ground") 
+        ? (groundFloorAlternatives[currentPlanAlt] ? groundFloorAlternatives[currentPlanAlt].rooms : groundFloorAlternatives[0].rooms)
+        : firstFloorRooms;
+
+      activeRooms.forEach(r => {
+        const sp = worldToScreen(r.x, r.y + r.h);
+        ctx.fillStyle = r.color + "28";
+        ctx.fillRect(sp.x, sp.y, r.w * camera.zoom, r.h * camera.zoom);
+
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = Math.max(1.5, 0.10 * camera.zoom);
+        ctx.strokeRect(sp.x, sp.y, r.w * camera.zoom, r.h * camera.zoom);
+
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+        const sc = worldToScreen(cx, cy);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(r.name, sc.x, sc.y - 4);
+        ctx.fillStyle = "#38bdf8";
+        ctx.font = "bold 10px monospace";
+        ctx.fillText(`${r.area.toFixed(1)} m²`, sc.x, sc.y + 10);
+      });
+
+      drawStaircaseCore();
+
+      ctx.save();
+      ctx.beginPath();
+      const p0 = worldToScreen(outerWalls[0].x, outerWalls[0].y);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < outerWalls.length; i++) {
+        const pt = worldToScreen(outerWalls[i].x, outerWalls[i].y);
+        ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = "#f8fafc";
+      ctx.lineWidth = Math.max(3.5, 0.20 * camera.zoom);
+      ctx.stroke();
+      ctx.restore();
+
+      if (showDimensions) {
+        ctx.save();
+        ctx.strokeStyle = "#64748b";
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "11px monospace";
+        const p1 = worldToScreen(0, -1.5);
+        const p2 = worldToScreen(24.5, -1.5);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.fillText("24.50 m (Dış Duvar)", (p1.x + p2.x)/2 - 50, p1.y - 6);
+        ctx.restore();
+      }
+    }
+
+    function drawStaircaseCore() {
+      const sp = worldToScreen(4.8, 8.5);
+      const sw = 5.2 * camera.zoom;
+      const sh = 4.0 * camera.zoom;
+
+      ctx.save();
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(sp.x, sp.y, sw, sh);
+      ctx.strokeStyle = "#fbbf24";
+      ctx.lineWidth = 1;
+
+      const numSteps = 9;
+      const stepW = sw / 2;
+      const stepH = sh / numSteps;
+      for (let i = 0; i <= numSteps; i++) {
+        const y = sp.y + i * stepH;
+        ctx.beginPath(); ctx.moveTo(sp.x, y); ctx.lineTo(sp.x + stepW - 4, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sp.x + stepW + 4, y); ctx.lineTo(sp.x + sw, y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function computeSetbackPolygon(pts) {
+      const avgX = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+      const avgY = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+      return pts.map(p => {
+        const dx = avgX - p.x;
+        const dy = avgY - p.y;
+        const len = Math.hypot(dx, dy);
+        const ratio = Math.min(4.5 / len, 0.40);
+        return { x: p.x + dx * ratio, y: p.y + dy * ratio };
+      });
+    }
+
+    function drawPolygon(pts, fillCol, strokeCol, lineW, isDashed) {
+      if (!pts || pts.length < 3) return;
+      ctx.save();
+      ctx.beginPath();
+      const sp0 = worldToScreen(pts[0].x, pts[0].y);
+      ctx.moveTo(sp0.x, sp0.y);
+      for (let i = 1; i < pts.length; i++) {
+        const sp = worldToScreen(pts[i].x, pts[i].y);
+        ctx.lineTo(sp.x, sp.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fillCol;
+      ctx.fill();
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = lineW;
+      if (isDashed) ctx.setLineDash([8, 5]);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEdgeBadges(pts) {
+      ctx.save();
+      for (let i = 0; i < pts.length; i++) {
+        const letter = LETTERS[i % LETTERS.length];
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % pts.length];
+        const type = activeParcel.edgeTypes[i] || "Komşu";
+
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.hypot(dx, dy);
+
+        const sp1 = worldToScreen(p1.x, p1.y);
+        const sp2 = worldToScreen(p2.x, p2.y);
+        const midX = (sp1.x + sp2.x) / 2;
+        const midY = (sp1.y + sp2.y) / 2;
+
+        const angle = Math.atan2(sp2.y - sp1.y, sp2.x - sp1.x);
+        const nx = -Math.sin(angle) * 18;
+        const ny = Math.cos(angle) * 18;
+
+        const badgeText = `[${letter}] ${dist.toFixed(1)}m · ${type}`;
+        ctx.font = "bold 11px sans-serif";
+        const tw = ctx.measureText(badgeText).width;
+
+        const col = type === "Yol" ? "#0284c7" : (type === "Arka" ? "#8b5cf6" : "#fbbf24");
+        ctx.fillStyle = "#0f172a";
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(midX + nx - tw/2 - 6, midY + ny - 9, tw + 12, 18, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = col;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(badgeText, midX + nx, midY + ny);
+      }
+      ctx.restore();
+    }
+
+    function drawGrid() {
+      const step = (appStage === "site") ? 5 : 1;
+      const screenStep = step * camera.zoom;
+      if (screenStep < 10) return;
+      ctx.save();
+      ctx.strokeStyle = "#161b24";
+      ctx.lineWidth = 1;
+
+      const startX = camera.x % screenStep;
+      for (let x = startX; x < canvas.width; x += screenStep) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      const startY = camera.y % screenStep;
+      for (let y = startY; y < canvas.height; y += screenStep) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function setAppStage(stage) {
+      appStage = stage;
+      document.getElementById("btnStageSite").classList.toggle("active", stage === "site");
+      document.getElementById("btnStageFloor").classList.toggle("active", stage === "floor");
+
+      document.getElementById("siteControlBar").style.display = (stage === "site") ? "flex" : "none";
+      document.getElementById("floorControlBar").style.display = (stage === "floor") ? "flex" : "none";
+      document.getElementById("compass").style.display = (stage === "site") ? "flex" : "none";
+      document.getElementById("floorSelector").style.display = (stage === "floor") ? "flex" : "none";
+      document.getElementById("viewSwitchWrapper").style.display = (stage === "site") ? "flex" : "none";
+
+      resetActiveView();
+      updateHUD();
+      draw();
+      showToast(stage === "site" ? "1. Aşama: Vaziyet & Kütle Etüdü" : "2. Aşama: Kat Planı ve Oda Kurgusu");
+    }
+
+    function resetActiveView() {
+      if (appStage === "site") {
+        camera.x = canvas.width / 2 - 20 * 7.5;
+        camera.y = canvas.height / 2 + 18 * 7.5;
+        camera.zoom = 7.5;
+      } else {
+        camera.x = canvas.width / 2 - 12 * 20.0;
+        camera.y = canvas.height / 2 + 9 * 20.0;
+        camera.zoom = 20.0;
+      }
+      draw();
+    }
+
+    function selectFloor(f) {
+      activeFloor = f;
+      ["roof", "1", "ground", "basement"].forEach(k => {
+        const btn = document.getElementById(`fbtn-${k}`);
+        if (btn) btn.classList.toggle("active", k === f);
+      });
+      updateHUD();
+      draw();
+    }
+
+    function setMassMode(m) {
+      currentMassMode = m;
+      document.getElementById("btnModeSingle").classList.toggle("active", m === "single");
+      document.getElementById("btnModeMulti").classList.toggle("active", m === "multi");
+      document.getElementById("formSelector").style.display = (m === "single") ? "flex" : "none";
+      updateHUD();
+      draw();
+    }
+
+    function setFormShape(s) {
+      currentShape = s;
+      ["L", "U", "I", "Z"].forEach(k => {
+        document.getElementById(`fbtn-${k}`).classList.toggle("active", k === s);
+      });
+      updateHUD();
+      draw();
+    }
+
+    function generateNewAlternatives() {
+      generateAlternativesList();
+      currentAltIdx = 0;
+      updateAltChips();
+      updateHUD();
+      draw();
+      showToast("5 Yeni Kütle Alternatifi Üretildi!");
+    }
+
+    function selectAlt(idx) {
+      currentAltIdx = idx;
+      updateAltChips();
+      updateHUD();
+      draw();
+    }
+
+    function updateAltChips() {
+      const chips = document.querySelectorAll("#altChips .alt-chip");
+      chips.forEach((c, i) => c.classList.toggle("active", i === currentAltIdx));
+    }
+
+    function generateNewPlanAlternatives() {
+      currentPlanAlt = (currentPlanAlt + 1) % groundFloorAlternatives.length;
+      updatePlanChips();
+      updateHUD();
+      draw();
+      showToast("Yeni Kat Planı Alternatifi Üretildi!");
+    }
+
+    function selectPlanAlt(idx) {
+      currentPlanAlt = idx;
+      updatePlanChips();
+      updateHUD();
+      draw();
+    }
+
+    function updatePlanChips() {
+      const chips = document.querySelectorAll("#planChips .alt-chip");
+      chips.forEach((c, i) => c.classList.toggle("active", i === currentPlanAlt));
+    }
+
+    function setViewMode(v) {
+      viewMode = v;
+      document.getElementById("btnView2D").classList.toggle("active", v === "2D");
+      document.getElementById("btnView3D").classList.toggle("active", v === "3D");
+      draw();
+    }
+
+    function onSetbackChange() {
+      setbackDistances.Yol = parseFloat(document.getElementById("inp-front").value) || 5;
+      setbackDistances.Komşu = parseFloat(document.getElementById("inp-side").value) || 3;
+      setbackDistances.Arka = parseFloat(document.getElementById("inp-rear").value) || 3;
+      draw();
+    }
+
+    function openEdgePopup(edgeIdx, cx, cy) {
+      selectedEdgeIdx = edgeIdx;
+      const pop = document.getElementById("edgePopup");
+      const letter = LETTERS[edgeIdx % LETTERS.length];
+      document.getElementById("popup-edge-title").innerText = `Kenar [${letter}]`;
+      pop.style.left = `${Math.min(cx + 10, window.innerWidth - 180)}px`;
+      pop.style.top = `${Math.min(cy - 20, window.innerHeight - 150)}px`;
+      pop.style.display = "block";
+    }
+
+    function closeEdgePopup() {
+      document.getElementById("edgePopup").style.display = "none";
+    }
+
+    function setEdgeType(t) {
+      if (selectedEdgeIdx !== null) {
+        activeParcel.edgeTypes[selectedEdgeIdx] = t;
+        closeEdgePopup();
+        draw();
+      }
+    }
+
+    function onIlChange() {}
+
+    function fetchParcel() {
+      const btn = document.querySelector(".btn-fetch");
+      btn.innerHTML = "<span>⏳</span> Getiriliyor...";
+      setTimeout(() => {
+        btn.innerHTML = "<span>⚡</span> Parseli Getir";
+        currentSampleIdx = (currentSampleIdx + 1) % SAMPLE_PARCELS.length;
+        activeParcel = SAMPLE_PARCELS[currentSampleIdx];
+        document.getElementById("inp-ada").value = activeParcel.ada;
+        document.getElementById("inp-parsel").value = activeParcel.parsel;
+        resetActiveView();
+        updateHUD();
+        showToast(`${activeParcel.city} ${activeParcel.district} ${activeParcel.ada}/${activeParcel.parsel} yüklendi!`);
+      }, 350);
+    }
+
+    function updateHUD() {
+      const hudContent = document.getElementById("hud-content");
+      if (appStage === "site") {
+        document.getElementById("hud-main-title").innerText = "PARSEL & KÜTLE KÜNYESİ";
+        const alt = massAlternatives[currentAltIdx] || { area: 268.5, taks: 0.18 };
+        hudContent.innerHTML = `
+          <div class="hud-row"><span class="label">Konum:</span><span class="val">${activeParcel.city} / ${activeParcel.district}</span></div>
+          <div class="hud-row"><span class="label">Ada / Parsel:</span><span class="val">${activeParcel.ada} / ${activeParcel.parsel}</span></div>
+          <div class="hud-row"><span class="label">Tapu Alanı:</span><span class="val" style="color:#38bdf8; font-family:monospace">${activeParcel.area.toLocaleString("tr-TR")} m²</span></div>
+          <div class="hud-row"><span class="label">Yasal Çekme Sınırı:</span><span class="val" style="color:#10b981">642,30 m²</span></div>
+          <div class="hud-row" style="margin-top:6px; border-top:1px solid #1e293b; padding-top:6px;"><span class="label">Kütle Formu:</span><span class="val" style="color:#fbbf24">${currentMassMode === 'single' ? currentShape + '-Form' : '4 Ayrık Villa'}</span></div>
+          <div class="hud-row"><span class="label">Taban Alanı:</span><span class="val">${alt.area} m²</span></div>
+          <div class="hud-row"><span class="label">Gerçekleşen TAKS:</span><span class="val">${alt.taks} (Max: 0.40)</span></div>
+          <div class="hud-row"><span class="label">Toplam İnşaat (2 Kat):</span><span class="val">${(alt.area * 2).toFixed(1)} m²</span></div>
+        `;
+      } else {
+        document.getElementById("hud-main-title").innerText = "MAHAL METRAJ VE ALANLARI";
+        const rooms = (activeFloor === "ground") 
+          ? (groundFloorAlternatives[currentPlanAlt] ? groundFloorAlternatives[currentPlanAlt].rooms : groundFloorAlternatives[0].rooms)
+          : firstFloorRooms;
+        const totalNet = rooms.reduce((s, r) => s + r.area, 0);
+
+        let roomsHtml = rooms.map(r => `
+          <div class="room-item"><span>${r.name}:</span><span style="font-family:monospace; color:#38bdf8">${r.area.toFixed(1)} m²</span></div>
+        `).join("");
+
+        hudContent.innerHTML = `
+          <div class="hud-row"><span class="label">Aktif Kat:</span><span class="val" style="color:#38bdf8">${activeFloor === 'ground' ? 'Zemin Kat (±0.00)' : '1. Kat (+3.00)'}</span></div>
+          <div class="hud-row"><span class="label">Net Kullanım:</span><span class="val" style="color:#fbbf24; font-family:monospace">${totalNet.toFixed(1)} m²</span></div>
+          <div class="hud-row"><span class="label">Dış Duvar (20cm):</span><span class="val">21,80 m²</span></div>
+          <div class="hud-row"><span class="label">İç Duvar (10cm):</span><span class="val">14,30 m²</span></div>
+          <div class="room-summary">${roomsHtml}</div>
+        `;
+      }
+    }
+
+    function zoom(factor) { camera.zoom *= factor; draw(); }
+    function toggleGrid() { showGrid = !showGrid; draw(); }
+    function toggleDimensions() { showDimensions = !showDimensions; draw(); }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(() => t.style.display = "none", 2200);
+    }
+
+    function exportDXF() {
+      const pts = activeParcel.localCoords;
+      let dxf = "0\nSECTION\n2\nENTITIES\n0\nPOLYLINE\n8\nPARSEL_SINIRI\n66\n1\n70\n1\n";
+      pts.forEach(p => {
+        dxf += `0\nVERTEX\n8\nPARSEL_SINIRI\n10\n${p.x.toFixed(4)}\n20\n${p.y.toFixed(4)}\n30\n0.0\n`;
+      });
+      dxf += "0\nSEQEND\n0\nENDSEC\n0\nEOF\n";
+      downloadFile(`Parsel_${activeParcel.city}_${activeParcel.ada}_${activeParcel.parsel}.dxf`, dxf, "application/dxf");
+      showToast("AutoCAD 1:1 DXF Dosyası İndirildi!");
+    }
+
+    function exportIFC() {
+      const ifc = `ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ArchiGen CAD BIM Model Export'),'2;1');\nFILE_NAME('BIM_Etud_${activeParcel.ada}_${activeParcel.parsel}.ifc','2026-10-01T15:00:00',('Architect'),('ArchiGen'),'IFC4','ArchiGen CAD','None');\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n#1=IFCPROJECT('1xS3BCk291UvhgP2dvNQqG',#2,'ArchiGen Mimari Etut',$,$,$,$,(#3),#4);\n#2=IFCOWNERHISTORY(#5,#6,$,.ADDED.,$,$,$,$);\n#3=IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#7,$);\n#4=IFCUNITASSIGNMENT((#8,#9));\n#8=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);\n#9=IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);\n#10=IFCBUILDING('2xS3BCk291UvhgP2dvNQqG',#2,'Ana Bina',$,$,#11,$,$,.ELEMENT.,$,$,$);\nENDSEC;\nEND-ISO-10303-21;`;
+      downloadFile(`BIM_${activeParcel.city}_${activeParcel.ada}_${activeParcel.parsel}.ifc`, ifc, "application/x-step");
+      showToast("Revit/SketchUp Şematik IFC Dosyası İndirildi!");
+    }
+
+    function downloadFile(filename, content, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
