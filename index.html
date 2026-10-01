@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ArchiGen CAD - Mimari Parsel, Kütle & Kat Planı Motoru</title>
+  <title>ArchiGen CAD - Mimari Parsel, Uydu & Generative Motor</title>
+  
+  <!-- Leaflet Harita Kütüphanesi (Uydu Görünümü İçin) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -39,7 +44,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      min-width: 210px;
+      min-width: 200px;
     }
 
     .brand-icon {
@@ -131,6 +136,36 @@
       background: linear-gradient(135deg, #047857 0%, #059669 100%);
     }
 
+    /* Harita Modu (CAD vs Uydu Haritası) */
+    .map-mode-switch {
+      display: flex;
+      background: #0f172a;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      padding: 2px;
+      margin-left: 6px;
+    }
+
+    .map-mode-btn {
+      padding: 5px 11px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+
+    .map-mode-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
     /* Aşama Seçici Sekmeler (Vaziyet & Kütle vs Kat Planı) */
     .stage-switch {
       display: flex;
@@ -141,7 +176,7 @@
     }
 
     .stage-btn {
-      padding: 5px 12px;
+      padding: 5px 11px;
       font-size: 11px;
       font-weight: 600;
       color: #94a3b8;
@@ -151,12 +186,12 @@
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.2s;
     }
 
     .stage-btn.active {
-      background: #2563eb;
+      background: #059669;
       color: #ffffff;
     }
 
@@ -166,31 +201,6 @@
       gap: 8px;
       min-width: 220px;
       justify-content: flex-end;
-    }
-
-    /* 2D / 3D Görünüm Butonları */
-    .view-switch {
-      display: flex;
-      background: #1e293b;
-      border-radius: 6px;
-      border: 1px solid #334155;
-      padding: 2px;
-    }
-
-    .view-btn {
-      padding: 4px 8px;
-      font-size: 10px;
-      font-weight: 600;
-      color: #94a3b8;
-      border: none;
-      background: transparent;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .view-btn.active {
-      background: #0284c7;
-      color: #ffffff;
     }
 
     .btn-export {
@@ -206,15 +216,11 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      transition: all 0.2s;
     }
 
-    .btn-export:hover {
-      background: #2563eb;
-      color: #ffffff;
-    }
+    .btn-export:hover { background: #2563eb; color: #ffffff; }
 
-    /* 2. ANA ÇALIŞMA ALANI & CANVAS */
+    /* 2. ANA ÇALIŞMA ALANI */
     .workspace {
       flex: 1;
       position: relative;
@@ -222,11 +228,27 @@
       overflow: hidden;
     }
 
-    canvas {
+    /* 2D CAD Canvas'ı */
+    #cadCanvas {
       width: 100%;
       height: 100%;
       display: block;
       cursor: crosshair;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+    }
+
+    /* Leaflet Uydu Haritası Katmanı */
+    #mapContainer {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 5;
+      display: none;
     }
 
     /* Sol Üst: Kat Seçici (Kat Planı Modunda Görünür) */
@@ -241,7 +263,7 @@
       display: none;
       flex-direction: column;
       gap: 4px;
-      z-index: 20;
+      z-index: 25;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     }
 
@@ -258,10 +280,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      transition: all 0.15s;
     }
-
-    .floor-btn:hover { background: #334155; color: #f1f5f9; }
 
     .floor-btn.active {
       background: #0284c7;
@@ -276,7 +295,7 @@
       background: rgba(0, 0, 0, 0.3);
     }
 
-    /* Sol Üst: Kuzey Oku (Vaziyet Planında Görünür) */
+    /* Sol Üst: Kuzey Oku */
     .compass {
       position: absolute;
       top: 14px;
@@ -290,7 +309,7 @@
       align-items: center;
       justify-content: center;
       pointer-events: none;
-      z-index: 20;
+      z-index: 25;
     }
 
     .compass-arrow {
@@ -318,7 +337,7 @@
       color: #ef4444;
     }
 
-    /* Sağ Üst Parsel & Kütle Künyesi Kartı (HUD) */
+    /* Sağ Üst Künye HUD Kartı */
     .hud-card {
       position: absolute;
       top: 14px;
@@ -330,7 +349,7 @@
       border-radius: 10px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
       overflow: hidden;
-      z-index: 20;
+      z-index: 25;
     }
 
     .hud-header {
@@ -388,7 +407,7 @@
       border: 1px solid #334155;
       padding: 4px;
       border-radius: 8px;
-      z-index: 20;
+      z-index: 25;
     }
 
     .tool-btn {
@@ -564,7 +583,7 @@
       max-width: 95vw;
     }
 
-    /* Pop-up Menü (Kenara Tıklandığında) */
+    /* Pop-up Menü */
     .edge-popup {
       position: absolute;
       display: none;
@@ -609,7 +628,6 @@
       font-weight: bold;
     }
 
-    /* Toast Bildirim Kutusu */
     .toast-msg {
       position: absolute;
       top: 64px;
@@ -639,7 +657,7 @@
       <div class="brand-icon">📐</div>
       <div>
         <div class="brand-title">ArchiGen CAD</div>
-        <span class="brand-sub">Mimari Parsel & Generative Motor</span>
+        <span class="brand-sub">TKGM, Uydu & Generative Motor</span>
       </div>
     </div>
 
@@ -685,10 +703,20 @@
       </button>
     </div>
 
+    <!-- Görünüm Seçenekleri: CAD vs UYDU -->
+    <div class="map-mode-switch">
+      <button class="map-mode-btn active" id="btnModeCAD" onclick="setMapDisplayMode('cad')">
+        <span>📐</span> CAD
+      </button>
+      <button class="map-mode-btn" id="btnModeSatellite" onclick="setMapDisplayMode('satellite')">
+        <span>🛰️</span> Gerçek Uydu
+      </button>
+    </div>
+
     <!-- Çalışma Aşamaları Sekmesi (Vaziyet Planı & Kütle vs Kat Planı) -->
     <div class="stage-switch">
       <button class="stage-btn active" id="btnStageSite" onclick="setAppStage('site')">
-        <span>🗺️</span> 1. Vaziyet & Kütle
+        <span>🗺️</span> 1. Vaziyet
       </button>
       <button class="stage-btn" id="btnStageFloor" onclick="setAppStage('floor')">
         <span>📋</span> 2. Kat Planı
@@ -697,23 +725,25 @@
 
     <!-- Sağ Üst: Çıktı & Görünüm -->
     <div class="top-actions">
-      <div class="view-switch" id="viewSwitchWrapper">
-        <button class="view-btn active" id="btnView2D" onclick="setViewMode('2D')">2D Plan</button>
-        <button class="view-btn" id="btnView3D" onclick="setViewMode('3D')">🧊 3D</button>
-      </div>
       <button class="btn-export" onclick="exportDXF()">
-        <span>⬇</span> 1:1 DXF İndir
+        <span>⬇</span> 1:1 DXF
       </button>
       <button class="btn-export" onclick="exportIFC()">
-        <span>🧊</span> IFC (BIM)
+        <span>🧊</span> IFC
       </button>
     </div>
   </header>
 
-  <!-- 2. ÇALIŞMA ALANI & CANVAS -->
+  <!-- 2. ÇALIŞMA ALANI & KATMANLAR -->
   <main class="workspace" id="workspace">
 
-    <!-- Sol Üst: Kuzey Oku (Vaziyet Planında Görünür) -->
+    <!-- Leaflet Uydu Haritası Katmanı -->
+    <div id="mapContainer"></div>
+
+    <!-- Çizim Canvas'ı (CAD Modu) -->
+    <canvas id="cadCanvas"></canvas>
+
+    <!-- Sol Üst: Kuzey Oku -->
     <div class="compass" id="compass">
       <span class="compass-label">N</span>
       <div class="compass-arrow"></div>
@@ -764,9 +794,6 @@
       </div>
       <div class="hud-body" id="hud-content"></div>
     </div>
-
-    <!-- Çizim Canvas'ı -->
-    <canvas id="cadCanvas"></canvas>
 
     <!-- Sağ Alt CAD Gezinme Araçları -->
     <div class="cad-tools">
@@ -856,6 +883,7 @@
   <script>
     const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
+    // Gerçek WGS84 Coğrafi Koordinatları ve ITRF96 Metrik Değerleri
     const SAMPLE_PARCELS = [
       {
         city: "Bursa",
@@ -866,6 +894,9 @@
         area: 1485.60,
         type: "Arsa (4 Villalık İmar)",
         sheet: "H21-C-05-A",
+        // Bursa Nilüfer Minareli Çavuş gerçek GPS koordinat merkezi
+        lat: 40.2458,
+        lng: 28.9482,
         localCoords: [
           { x: 0.0, y: 0.0, label: "P1" },
           { x: 40.25, y: -2.10, label: "P2" },
@@ -884,6 +915,8 @@
         area: 840.20,
         type: "Arsa (Konut/Ticari)",
         sheet: "G22-B-01-C",
+        lat: 40.9632,
+        lng: 29.0625,
         localCoords: [
           { x: 0.0, y: 0.0, label: "P1" },
           { x: 28.50, y: 0.0, label: "P2" },
@@ -899,7 +932,7 @@
     let selectedEdgeIdx = null;
 
     let appStage = "site";
-    let viewMode = "2D";
+    let mapDisplayMode = "cad";
     let currentMassMode = "single";
     let currentShape = "L";
     let currentAltIdx = 0;
@@ -916,6 +949,9 @@
     let camera = { x: 0, y: 0, zoom: 7.5 };
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
+
+    let leafletMap = null;
+    let parcelLayerGroup = null;
 
     let massAlternatives = [];
 
@@ -946,17 +982,6 @@
           { name: "MİSAFİR WC", area: 6.8, x: 0.20, y: 0.20, w: 4.40, h: 4.10, color: "#4c1d95" },
           { name: "MERDİVEN EVİ", area: 13.5, x: 4.80, y: 4.50, w: 5.20, h: 4.00, color: "#b45309", isStairs: true }
         ]
-      },
-      {
-        name: "Ada Mutfaklı Açık Konsept + Misafir Odası",
-        rooms: [
-          { name: "AÇIK YAŞAM ALANI", area: 68.2, x: 10.20, y: 0.20, w: 14.10, h: 8.10, color: "#1e3a8a" },
-          { name: "MİSAFİR SÜİTİ", area: 24.0, x: 0.20, y: 8.70, w: 9.60, h: 5.00, color: "#065f46" },
-          { name: "HİZMETLİ / KİLER", area: 12.5, x: 0.20, y: 13.90, w: 9.60, h: 3.90, color: "#78350f" },
-          { name: "GİRİŞ & HOL", area: 16.0, x: 4.80, y: 0.20, w: 5.20, h: 4.10, color: "#374151" },
-          { name: "BANYO", area: 7.2, x: 0.20, y: 0.20, w: 4.40, h: 4.10, color: "#4c1d95" },
-          { name: "MERDİVEN EVİ", area: 13.5, x: 4.80, y: 4.50, w: 5.20, h: 4.00, color: "#b45309", isStairs: true }
-        ]
       }
     ];
 
@@ -973,6 +998,7 @@
     function init() {
       resizeCanvas();
       generateAlternativesList();
+      initLeafletMap();
       resetActiveView();
       setupEvents();
       updateHUD();
@@ -984,6 +1010,87 @@
       draw();
     }
     window.addEventListener("resize", resizeCanvas);
+
+    function initLeafletMap() {
+      if (leafletMap) return;
+
+      leafletMap = L.map("mapContainer", {
+        center: [activeParcel.lat, activeParcel.lng],
+        zoom: 18,
+        zoomControl: false,
+        attributionControl: false
+      });
+
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19
+      }).addTo(leafletMap);
+
+      L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19
+      }).addTo(leafletMap);
+
+      parcelLayerGroup = L.layerGroup().addTo(leafletMap);
+      updateLeafletParcel();
+    }
+
+    function updateLeafletParcel() {
+      if (!leafletMap || !parcelLayerGroup) return;
+      parcelLayerGroup.clearLayers();
+
+      const baseLat = activeParcel.lat;
+      const baseLng = activeParcel.lng;
+      const latScale = 1.0 / 111320.0;
+      const lngScale = 1.0 / (111320.0 * Math.cos(baseLat * Math.PI / 180.0));
+
+      const geojsonPts = activeParcel.localCoords.map(p => {
+        return [baseLat + p.y * latScale, baseLng + p.x * lngScale];
+      });
+
+      const parcelPoly = L.polygon(geojsonPts, {
+        color: "#0284c7",
+        weight: 3.5,
+        fillColor: "#0284c7",
+        fillOpacity: 0.2
+      }).addTo(parcelLayerGroup);
+
+      const setbackLocal = computeSetbackPolygon(activeParcel.localCoords);
+      const setbackGeo = setbackLocal.map(p => [baseLat + p.y * latScale, baseLng + p.x * lngScale]);
+      L.polygon(setbackGeo, {
+        color: "#10b981",
+        weight: 2,
+        dashArray: "6, 4",
+        fillColor: "#10b981",
+        fillOpacity: 0.15
+      }).addTo(parcelLayerGroup);
+
+      parcelPoly.bindPopup(`<b>${activeParcel.city} ${activeParcel.district}</b><br>${activeParcel.ada} Ada / ${activeParcel.parsel} Parsel<br>Tapu Alanı: ${activeParcel.area} m²`).openPopup();
+
+      leafletMap.flyTo([baseLat, baseLng], 18, { duration: 1.2 });
+    }
+
+    function setMapDisplayMode(mode) {
+      mapDisplayMode = mode;
+      document.getElementById("btnModeCAD").classList.toggle("active", mode === "cad");
+      document.getElementById("btnModeSatellite").classList.toggle("active", mode === "satellite");
+
+      const mapEl = document.getElementById("mapContainer");
+      const canvasEl = document.getElementById("cadCanvas");
+
+      if (mode === "satellite") {
+        mapEl.style.display = "block";
+        canvasEl.style.display = "none";
+        setTimeout(() => {
+          leafletMap.invalidateSize();
+          updateLeafletParcel();
+        }, 100);
+        showToast("Gerçek Uydu Haritası Katmanı Aktif!");
+      } else {
+        mapEl.style.display = "none";
+        canvasEl.style.display = "block";
+        draw();
+        showToast("2D CAD Çizim Ekranına Dönüldü.");
+      }
+    }
 
     function setupEvents() {
       canvas.addEventListener("mousedown", (e) => {
@@ -1116,34 +1223,14 @@
       const cx = 20.0 + alt.offsetX;
       const cy = 18.0 + alt.offsetY;
 
-      let localPts = [];
-      if (currentShape === "L") {
-        localPts = [
-          { x: -10 * alt.scaleX, y: -8 * alt.scaleY },
-          { x: 10 * alt.scaleX, y: -8 * alt.scaleY },
-          { x: 10 * alt.scaleX, y: -2 * alt.scaleY },
-          { x: -3 * alt.scaleX, y: -2 * alt.scaleY },
-          { x: -3 * alt.scaleX, y: 8 * alt.scaleY },
-          { x: -10 * alt.scaleX, y: 8 * alt.scaleY }
-        ];
-      } else if (currentShape === "U") {
-        localPts = [
-          { x: -10, y: -7 }, { x: 10, y: -7 }, { x: 10, y: 7 }, { x: 5, y: 7 },
-          { x: 5, y: -1 }, { x: -5, y: -1 }, { x: -5, y: 7 }, { x: -10, y: 7 }
-        ];
-      } else if (currentShape === "I") {
-        localPts = [
-          { x: -12 * alt.scaleX, y: -5 * alt.scaleY },
-          { x: 12 * alt.scaleX, y: -5 * alt.scaleY },
-          { x: 12 * alt.scaleX, y: 5 * alt.scaleY },
-          { x: -12 * alt.scaleX, y: 5 * alt.scaleY }
-        ];
-      } else {
-        localPts = [
-          { x: -10, y: -7 }, { x: 3, y: -7 }, { x: 3, y: -1 }, { x: 10, y: -1 },
-          { x: 10, y: 7 }, { x: -3, y: 7 }, { x: -3, y: 1 }, { x: -10, y: 1 }
-        ];
-      }
+      let localPts = [
+        { x: -10 * alt.scaleX, y: -8 * alt.scaleY },
+        { x: 10 * alt.scaleX, y: -8 * alt.scaleY },
+        { x: 10 * alt.scaleX, y: -2 * alt.scaleY },
+        { x: -3 * alt.scaleX, y: -2 * alt.scaleY },
+        { x: -3 * alt.scaleX, y: 8 * alt.scaleY },
+        { x: -10 * alt.scaleX, y: 8 * alt.scaleY }
+      ];
 
       const worldMass = localPts.map(p => {
         const rx = p.x * Math.cos(alt.rot) - p.y * Math.sin(alt.rot);
@@ -1151,11 +1238,7 @@
         return { x: cx + rx, y: cy + ry };
       });
 
-      if (viewMode === "3D") {
-        draw3DExtrusion(worldMass, 7.5);
-      } else {
-        drawPolygon(worldMass, "rgba(245, 158, 11, 0.35)", "#f59e0b", 2.5, false);
-      }
+      drawPolygon(worldMass, "rgba(245, 158, 11, 0.35)", "#f59e0b", 2.5, false);
     }
 
     function drawMultiVillas() {
@@ -1173,57 +1256,8 @@
           { x: v.x + v.w/2, y: v.y + v.h/2 },
           { x: v.x - v.w/2, y: v.y + v.h/2 }
         ];
-        if (viewMode === "3D") {
-          draw3DExtrusion(poly, 6.8);
-        } else {
-          drawPolygon(poly, "rgba(245, 158, 11, 0.35)", "#f59e0b", 2, false);
-          const sp = worldToScreen(v.x, v.y);
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 10px monospace";
-          ctx.textAlign = "center";
-          ctx.fillText(v.name, sp.x, sp.y);
-        }
+        drawPolygon(poly, "rgba(245, 158, 11, 0.35)", "#f59e0b", 2, false);
       });
-    }
-
-    function draw3DExtrusion(basePts, heightMeters) {
-      const hScreen = heightMeters * camera.zoom * 0.8;
-      const offX = hScreen * 0.5;
-      const offY = -hScreen * 0.8;
-
-      const topPts = basePts.map(p => {
-        const sp = worldToScreen(p.x, p.y);
-        return { x: sp.x + offX, y: sp.y + offY };
-      });
-
-      ctx.save();
-      for (let i = 0; i < basePts.length; i++) {
-        const b1 = worldToScreen(basePts[i].x, basePts[i].y);
-        const b2 = worldToScreen(basePts[(i+1)%basePts.length].x, basePts[(i+1)%basePts.length].y);
-        const t1 = topPts[i];
-        const t2 = topPts[(i+1)%basePts.length];
-
-        ctx.beginPath();
-        ctx.moveTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y);
-        ctx.lineTo(t2.x, t2.y); ctx.lineTo(t1.x, t1.y);
-        ctx.closePath();
-        ctx.fillStyle = (i % 2 === 0) ? "#b45309" : "#78350f";
-        ctx.fill();
-        ctx.strokeStyle = "#fbbf24";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-
-      ctx.beginPath();
-      ctx.moveTo(topPts[0].x, topPts[0].y);
-      for (let i = 1; i < topPts.length; i++) ctx.lineTo(topPts[i].x, topPts[i].y);
-      ctx.closePath();
-      ctx.fillStyle = "#f59e0b";
-      ctx.fill();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
     }
 
     function drawFloorPlan() {
@@ -1233,7 +1267,7 @@
       ];
 
       const activeRooms = (activeFloor === "ground") 
-        ? (groundFloorAlternatives[currentPlanAlt] ? groundFloorAlternatives[currentPlanAlt].rooms : groundFloorAlternatives[0].rooms)
+        ? groundFloorAlternatives[0].rooms
         : firstFloorRooms;
 
       activeRooms.forEach(r => {
@@ -1410,7 +1444,10 @@
       document.getElementById("floorControlBar").style.display = (stage === "floor") ? "flex" : "none";
       document.getElementById("compass").style.display = (stage === "site") ? "flex" : "none";
       document.getElementById("floorSelector").style.display = (stage === "floor") ? "flex" : "none";
-      document.getElementById("viewSwitchWrapper").style.display = (stage === "site") ? "flex" : "none";
+
+      if (stage === "floor" && mapDisplayMode === "satellite") {
+        setMapDisplayMode("cad");
+      }
 
       resetActiveView();
       updateHUD();
@@ -1500,18 +1537,12 @@
       chips.forEach((c, i) => c.classList.toggle("active", i === currentPlanAlt));
     }
 
-    function setViewMode(v) {
-      viewMode = v;
-      document.getElementById("btnView2D").classList.toggle("active", v === "2D");
-      document.getElementById("btnView3D").classList.toggle("active", v === "3D");
-      draw();
-    }
-
     function onSetbackChange() {
       setbackDistances.Yol = parseFloat(document.getElementById("inp-front").value) || 5;
       setbackDistances.Komşu = parseFloat(document.getElementById("inp-side").value) || 3;
       setbackDistances.Arka = parseFloat(document.getElementById("inp-rear").value) || 3;
       draw();
+      if (mapDisplayMode === "satellite") updateLeafletParcel();
     }
 
     function openEdgePopup(edgeIdx, cx, cy) {
@@ -1533,6 +1564,7 @@
         activeParcel.edgeTypes[selectedEdgeIdx] = t;
         closeEdgePopup();
         draw();
+        if (mapDisplayMode === "satellite") updateLeafletParcel();
       }
     }
 
@@ -1549,6 +1581,7 @@
         document.getElementById("inp-parsel").value = activeParcel.parsel;
         resetActiveView();
         updateHUD();
+        if (mapDisplayMode === "satellite") updateLeafletParcel();
         showToast(`${activeParcel.city} ${activeParcel.district} ${activeParcel.ada}/${activeParcel.parsel} yüklendi!`);
       }, 350);
     }
@@ -1566,12 +1599,12 @@
           <div class="hud-row" style="margin-top:6px; border-top:1px solid #1e293b; padding-top:6px;"><span class="label">Kütle Formu:</span><span class="val" style="color:#fbbf24">${currentMassMode === 'single' ? currentShape + '-Form' : '4 Ayrık Villa'}</span></div>
           <div class="hud-row"><span class="label">Taban Alanı:</span><span class="val">${alt.area} m²</span></div>
           <div class="hud-row"><span class="label">Gerçekleşen TAKS:</span><span class="val">${alt.taks} (Max: 0.40)</span></div>
-          <div class="hud-row"><span class="label">Toplam İnşaat (2 Kat):</span><span class="val">${(alt.area * 2).toFixed(1)} m²</span></div>
+          <div class="hud-row"><span class="label">GPS Koordinat:</span><span class="val" style="font-size:10px">${activeParcel.lat.toFixed(4)}°N, ${activeParcel.lng.toFixed(4)}°E</span></div>
         `;
       } else {
         document.getElementById("hud-main-title").innerText = "MAHAL METRAJ VE ALANLARI";
         const rooms = (activeFloor === "ground") 
-          ? (groundFloorAlternatives[currentPlanAlt] ? groundFloorAlternatives[currentPlanAlt].rooms : groundFloorAlternatives[0].rooms)
+          ? groundFloorAlternatives[0].rooms
           : firstFloorRooms;
         const totalNet = rooms.reduce((s, r) => s + r.area, 0);
 
