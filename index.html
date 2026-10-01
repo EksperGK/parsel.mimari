@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ArchiGen CAD - Mimari Parsel, Uydu & Generative Motor</title>
   
-  <!-- Leaflet Harita Kütüphanesi (Uydu Görünümü İçin) -->
+  <!-- Leaflet Harita Kütüphanesi -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -36,7 +36,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 16px;
-      z-index: 50;
+      z-index: 100;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
     }
 
@@ -147,7 +147,7 @@
     }
 
     .map-mode-btn {
-      padding: 5px 11px;
+      padding: 5px 12px;
       font-size: 11px;
       font-weight: 600;
       color: #94a3b8;
@@ -166,7 +166,7 @@
       color: #ffffff;
     }
 
-    /* Aşama Seçici Sekmeler (Vaziyet & Kütle vs Kat Planı) */
+    /* Aşama Seçici Sekmeler (Vaziyet vs Kat Planı) */
     .stage-switch {
       display: flex;
       background: #0f172a;
@@ -226,6 +226,28 @@
       position: relative;
       background-color: #111419;
       overflow: hidden;
+      width: 100vw;
+      height: calc(100vh - 52px);
+    }
+
+    /* Leaflet Harita Katmanı (HER ZAMAN DOM'DA KALIR, display:none YAPILMAZ) */
+    #mapContainer {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      background: #111419;
+    }
+
+    #mapContainer.active-map {
+      z-index: 15;
+      opacity: 1;
+      pointer-events: auto;
     }
 
     /* 2D CAD Canvas'ı */
@@ -240,18 +262,7 @@
       z-index: 10;
     }
 
-    /* Leaflet Uydu Haritası Katmanı */
-    #mapContainer {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 5;
-      display: none;
-    }
-
-    /* Sol Üst: Kat Seçici (Kat Planı Modunda Görünür) */
+    /* Sol Üst: Kat Seçici */
     .floor-selector {
       position: absolute;
       top: 14px;
@@ -263,7 +274,7 @@
       display: none;
       flex-direction: column;
       gap: 4px;
-      z-index: 25;
+      z-index: 35;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     }
 
@@ -309,7 +320,7 @@
       align-items: center;
       justify-content: center;
       pointer-events: none;
-      z-index: 25;
+      z-index: 35;
     }
 
     .compass-arrow {
@@ -349,7 +360,7 @@
       border-radius: 10px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
       overflow: hidden;
-      z-index: 25;
+      z-index: 35;
     }
 
     .hud-header {
@@ -407,7 +418,7 @@
       border: 1px solid #334155;
       padding: 4px;
       border-radius: 8px;
-      z-index: 25;
+      z-index: 35;
     }
 
     .tool-btn {
@@ -440,7 +451,7 @@
       align-items: center;
       gap: 14px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-      z-index: 30;
+      z-index: 35;
       max-width: 95vw;
     }
 
@@ -579,7 +590,7 @@
       align-items: center;
       gap: 16px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-      z-index: 30;
+      z-index: 35;
       max-width: 95vw;
     }
 
@@ -737,7 +748,7 @@
   <!-- 2. ÇALIŞMA ALANI & KATMANLAR -->
   <main class="workspace" id="workspace">
 
-    <!-- Leaflet Uydu Haritası Katmanı -->
+    <!-- Leaflet Uydu Haritası Katmanı (Her zaman DOM'da, görünürlüğü sınıfla yönetilir) -->
     <div id="mapContainer"></div>
 
     <!-- Çizim Canvas'ı (CAD Modu) -->
@@ -883,7 +894,7 @@
   <script>
     const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-    // Gerçek WGS84 Coğrafi Koordinatları ve ITRF96 Metrik Değerleri
+    // Gerçek WGS84 Coğrafi Koordinatları (Bursa Nilüfer Minareli Çavuş)
     const SAMPLE_PARCELS = [
       {
         city: "Bursa",
@@ -894,9 +905,8 @@
         area: 1485.60,
         type: "Arsa (4 Villalık İmar)",
         sheet: "H21-C-05-A",
-        // Bursa Nilüfer Minareli Çavuş gerçek GPS koordinat merkezi
-        lat: 40.2458,
-        lng: 28.9482,
+        lat: 40.2520,
+        lng: 28.9410,
         localCoords: [
           { x: 0.0, y: 0.0, label: "P1" },
           { x: 40.25, y: -2.10, label: "P2" },
@@ -950,6 +960,7 @@
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
 
+    // Leaflet Harita
     let leafletMap = null;
     let parcelLayerGroup = null;
 
@@ -998,10 +1009,10 @@
     function init() {
       resizeCanvas();
       generateAlternativesList();
-      initLeafletMap();
       resetActiveView();
       setupEvents();
       updateHUD();
+      initLeafletMap();
     }
 
     function resizeCanvas() {
@@ -1011,22 +1022,25 @@
     }
     window.addEventListener("resize", resizeCanvas);
 
+    /* =========================================================================
+       GERÇEK UYDU HARİTASI (GOOGLE HYBRID SATELLITE + ESRI FALLBACK)
+       ========================================================================= */
     function initLeafletMap() {
       if (leafletMap) return;
 
-      leafletMap = L.map("mapContainer", {
+      const mapContainer = document.getElementById("mapContainer");
+
+      leafletMap = L.map(mapContainer, {
         center: [activeParcel.lat, activeParcel.lng],
         zoom: 18,
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: false
       });
 
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 19
-      }).addTo(leafletMap);
-
-      L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 19
+      // 1. Google Hibrit Uydu Katmanı (Türkiye genelinde kusursuz netlik ve sokak isimleri)
+      L.tileLayer("https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
+        maxZoom: 20,
+        subdomains: ["mt0", "mt1", "mt2", "mt3"]
       }).addTo(leafletMap);
 
       parcelLayerGroup = L.layerGroup().addTo(leafletMap);
@@ -1046,26 +1060,46 @@
         return [baseLat + p.y * latScale, baseLng + p.x * lngScale];
       });
 
+      // Parsel Sınırı (Mavi Vektör)
       const parcelPoly = L.polygon(geojsonPts, {
         color: "#0284c7",
-        weight: 3.5,
+        weight: 4,
         fillColor: "#0284c7",
-        fillOpacity: 0.2
+        fillOpacity: 0.25
       }).addTo(parcelLayerGroup);
 
+      // Çekme Sınırı (Yeşil Kesikli)
       const setbackLocal = computeSetbackPolygon(activeParcel.localCoords);
       const setbackGeo = setbackLocal.map(p => [baseLat + p.y * latScale, baseLng + p.x * lngScale]);
       L.polygon(setbackGeo, {
         color: "#10b981",
-        weight: 2,
-        dashArray: "6, 4",
+        weight: 2.5,
+        dashArray: "8, 5",
         fillColor: "#10b981",
-        fillOpacity: 0.15
+        fillOpacity: 0.20
       }).addTo(parcelLayerGroup);
 
-      parcelPoly.bindPopup(`<b>${activeParcel.city} ${activeParcel.district}</b><br>${activeParcel.ada} Ada / ${activeParcel.parsel} Parsel<br>Tapu Alanı: ${activeParcel.area} m²`).openPopup();
+      // Köşe Noktaları (P1..Pn)
+      geojsonPts.forEach((pt, i) => {
+        L.circleMarker(pt, {
+          radius: 5,
+          color: "#ffffff",
+          weight: 2,
+          fillColor: "#f59e0b",
+          fillOpacity: 1
+        }).bindTooltip(`P${i+1}`, { permanent: true, direction: "top", className: "corner-tooltip" }).addTo(parcelLayerGroup);
+      });
 
-      leafletMap.flyTo([baseLat, baseLng], 18, { duration: 1.2 });
+      parcelPoly.bindPopup(`
+        <div style="font-family:sans-serif; font-size:12px; line-height:1.4;">
+          <b style="color:#0284c7">${activeParcel.city} / ${activeParcel.district}</b><br>
+          <b>${activeParcel.ada} Ada / ${activeParcel.parsel} Parsel</b><br>
+          Tapu Alanı: <b>${activeParcel.area} m²</b><br>
+          <span style="color:#10b981">● Yasal Oturum Sınırı Aktif</span>
+        </div>
+      `).openPopup();
+
+      leafletMap.setView([baseLat, baseLng], 18);
     }
 
     function setMapDisplayMode(mode) {
@@ -1077,21 +1111,28 @@
       const canvasEl = document.getElementById("cadCanvas");
 
       if (mode === "satellite") {
-        mapEl.style.display = "block";
+        mapEl.classList.add("active-map");
         canvasEl.style.display = "none";
+        
+        // Boyutları ve harita döşemelerini zorla yenile
         setTimeout(() => {
-          leafletMap.invalidateSize();
-          updateLeafletParcel();
-        }, 100);
-        showToast("Gerçek Uydu Haritası Katmanı Aktif!");
+          if (leafletMap) {
+            leafletMap.invalidateSize();
+            updateLeafletParcel();
+          }
+        }, 150);
+        showToast("Gerçek Uydu Haritası Açıldı!");
       } else {
-        mapEl.style.display = "none";
+        mapEl.classList.remove("active-map");
         canvasEl.style.display = "block";
         draw();
-        showToast("2D CAD Çizim Ekranına Dönüldü.");
+        showToast("2D CAD Çizim Moduna Geçildi.");
       }
     }
 
+    /* =========================================================================
+       CAD ÇİZİM MOTORU
+       ========================================================================= */
     function setupEvents() {
       canvas.addEventListener("mousedown", (e) => {
         isDragging = true;
@@ -1306,18 +1347,6 @@
       ctx.lineWidth = Math.max(3.5, 0.20 * camera.zoom);
       ctx.stroke();
       ctx.restore();
-
-      if (showDimensions) {
-        ctx.save();
-        ctx.strokeStyle = "#64748b";
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "11px monospace";
-        const p1 = worldToScreen(0, -1.5);
-        const p2 = worldToScreen(24.5, -1.5);
-        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-        ctx.fillText("24.50 m (Dış Duvar)", (p1.x + p2.x)/2 - 50, p1.y - 6);
-        ctx.restore();
-      }
     }
 
     function drawStaircaseCore() {
