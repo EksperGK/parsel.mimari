@@ -22,75 +22,72 @@
     #map { position: absolute; inset: 0; z-index: 0; }
     #cad-canvas { position: absolute; inset: 0; z-index: 10; cursor: crosshair; }
     #three-container { position: absolute; inset: 0; z-index: 20; display: none; background: #0f172a; }
-    .glass-panel { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.8); }
+    .glass-panel { background: rgba(15, 23, 42, 0.90); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.8); }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 h-screen w-screen flex flex-col font-sans">
 
   <!-- 1. TAPU VE PROJE BARI (ÜST) -->
-  <header class="h-12 glass-panel z-30 flex items-center justify-between px-4 text-xs">
-    <div class="flex items-center gap-3">
+  <header class="h-12 glass-panel z-30 flex items-center justify-between px-3 text-xs">
+    <div class="flex items-center gap-2">
       <div class="flex items-center gap-1.5 font-bold tracking-wider text-amber-400 text-sm">
         <span class="w-3 h-3 bg-amber-400 rounded-sm"></span> KüpKüp CAD
       </div>
       <div class="h-4 w-px bg-slate-700 mx-1"></div>
       
-      <!-- TKGM Arayüzü -->
-      <div class="flex items-center gap-2">
-        <select id="sel-il" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200">
-          <option value="16">Bursa</option>
-          <option value="34">İstanbul</option>
-          <option value="06">Ankara</option>
-          <option value="35">İzmir</option>
-          <option value="10">Balıkesir</option>
-          <option value="77">Yalova</option>
+      <!-- 81 İL / İLÇE / MAHALLE ARDIŞIK SEÇİMİ -->
+      <div class="flex items-center gap-1.5">
+        <select id="sel-il" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200 text-xs w-28">
+          <option value="">İl Seçiniz</option>
         </select>
-        <input type="text" id="inp-ilce" placeholder="İlçe (Ör: Nilüfer)" value="Nilüfer" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200" />
-        <input type="text" id="inp-mahalle" placeholder="Mahalle" value="İhsaniye" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200" />
-        <input type="text" id="inp-ada" placeholder="Ada" value="2145" class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200" />
-        <input type="text" id="inp-parsel" placeholder="Parsel" value="12" class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200" />
-        <button id="btn-sorgula" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1 rounded transition flex items-center gap-1 shadow">
-          <i data-lucide="search" class="w-3.5 h-3.5"></i> Parseli Getir
+        <select id="sel-ilce" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200 text-xs w-28" disabled>
+          <option value="">İlçe Seçiniz</option>
+        </select>
+        <select id="sel-mahalle" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200 text-xs w-32" disabled>
+          <option value="">Mahalle Seçiniz</option>
+        </select>
+        <input type="text" id="inp-ada" placeholder="Ada" value="2145" class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-center outline-none text-slate-200 text-xs" />
+        <input type="text" id="inp-parsel" placeholder="Parsel" value="12" class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-center outline-none text-slate-200 text-xs" />
+        <button id="btn-sorgula" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1 rounded transition flex items-center gap-1 shadow text-xs">
+          <i data-lucide="search" class="w-3 h-3"></i> Parseli Getir
         </button>
       </div>
     </div>
 
-    <!-- Altlık ve Pratik Araçlar -->
+    <!-- Hızlı Başlat & Katman Değiştirici -->
     <div class="flex items-center gap-2">
-      <button id="btn-wizard" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded flex items-center gap-1 shadow">
-        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Sihirbaz
+      <button id="btn-wizard" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded flex items-center gap-1 shadow text-xs">
+        <i data-lucide="sparkles" class="w-3 h-3"></i> Sihirbaz
       </button>
       <div class="h-4 w-px bg-slate-700 mx-1"></div>
-      <button id="btn-toggle-layer" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded flex items-center gap-1">
-        <i data-lucide="layers" class="w-3.5 h-3.5 text-sky-400"></i> Uydu/Vektör
+      <button id="btn-toggle-layer" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded flex items-center gap-1 text-xs">
+        <i data-lucide="layers" class="w-3 h-3 text-sky-400"></i> Uydu/Vektör
       </button>
     </div>
   </header>
 
   <!-- 2. İMAR ARAÇ VE KISIT BARI -->
-  <section class="h-10 glass-panel z-30 flex items-center justify-between px-4 text-xs border-t-0">
+  <section class="h-10 glass-panel z-30 flex items-center justify-between px-3 text-xs border-t-0">
     <div class="flex items-center gap-3">
-      <!-- TAKS / KAKS -->
       <div class="flex items-center gap-1.5">
         <label class="text-slate-400">TAKS:</label>
-        <input type="number" id="inp-taks" step="0.05" value="0.40" class="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200" />
+        <input type="number" id="inp-taks" step="0.05" value="0.40" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
         <label class="text-slate-400 ml-2">KAKS:</label>
-        <input type="number" id="inp-kaks" step="0.1" value="1.20" class="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200" />
+        <input type="number" id="inp-kaks" step="0.1" value="1.20" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
       </div>
 
       <div class="h-4 w-px bg-slate-700"></div>
 
-      <!-- Kot Yönetimi -->
       <div class="flex items-center gap-1.5">
         <label class="text-slate-400">Bahçe:</label>
-        <input type="text" id="inp-kot-bahce" value="±0.00" class="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200" />
+        <input type="text" id="inp-kot-bahce" value="±0.00" class="w-12 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
         <label class="text-slate-400 ml-1">Subasman:</label>
-        <input type="text" id="inp-kot-zemin" value="+0.50m" class="w-16 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200" />
+        <input type="text" id="inp-kot-zemin" value="+0.50m" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
       </div>
 
       <div class="h-4 w-px bg-slate-700"></div>
 
-      <!-- Kat Dağılım Çubuğu -->
+      <!-- Katlar -->
       <div class="flex items-center gap-1" id="floor-tabs">
         <button class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/40 font-medium active-floor" data-floor="0">Zemin (h:3.0m)</button>
         <button class="px-2 py-0.5 bg-slate-900 text-slate-400 hover:text-slate-200 rounded border border-slate-800" data-floor="1">1. Kat (h:3.0m)</button>
@@ -99,14 +96,14 @@
 
       <div class="h-4 w-px bg-slate-700"></div>
 
-      <!-- Kural Motoru ve İmar Uyarı -->
+      <!-- Kural Sigortası -->
       <div class="flex items-center gap-2">
         <button id="btn-yonetmelik" class="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded px-2 py-0.5 flex items-center gap-1">
-          <i data-lucide="book-open" class="w-3.5 h-3.5 text-sky-400"></i> İmar Notu
+          <i data-lucide="book-open" class="w-3 h-3 text-sky-400"></i> İmar Notu
         </button>
 
         <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded px-2 py-0.5">
-          <span class="text-slate-400 font-medium">Kurallar:</span>
+          <span class="text-slate-400">Kurallar:</span>
           <button id="btn-toggle-rules" class="relative inline-flex h-4 w-8 items-center rounded-full bg-slate-700 transition">
             <span id="rules-toggle-thumb" class="inline-block h-3 w-3 transform rounded-full bg-white transition translate-x-0.5"></span>
           </button>
@@ -167,12 +164,21 @@
       <button id="btn-generate" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded transition flex justify-center items-center gap-1 shadow">
         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 10 Varyasyon Türet
       </button>
-
-      <div id="warning-box" class="hidden text-[10px] text-amber-300 bg-amber-950/40 border border-amber-800/80 p-2 rounded leading-tight flex items-start gap-1">
-        <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
-        <span id="warning-text">Kütle çekme sınırına temas ediyor.</span>
-      </div>
     </aside>
+
+    <!-- SAĞ ALT: PROFESYONEL CAD ZOOM VE HİZALAMA BUTONLARI -->
+    <div class="absolute right-4 bottom-6 z-30 flex flex-col gap-1.5 glass-panel p-1.5 rounded-lg shadow-2xl">
+      <button id="btn-zoom-in" title="Yakınlaştır (+)" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded flex items-center justify-center font-bold text-base transition">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+      </button>
+      <button id="btn-zoom-out" title="Uzaklaştır (-)" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded flex items-center justify-center font-bold text-base transition">
+        <i data-lucide="minus" class="w-4 h-4"></i>
+      </button>
+      <div class="w-full h-px bg-slate-700 my-0.5"></div>
+      <button id="btn-zoom-fit" title="Parseli Ortala / Sığdır" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded flex items-center justify-center transition">
+        <i data-lucide="focus" class="w-4 h-4"></i>
+      </button>
+    </div>
 
     <!-- Sağ Üst Görüntüleme ve CAD Export -->
     <div class="absolute right-3 top-3 z-30 flex flex-col gap-2">
@@ -185,7 +191,6 @@
         </button>
       </div>
 
-      <!-- Dışa Aktarma -->
       <div class="glass-panel rounded-lg p-2 flex flex-col gap-1 text-xs">
         <div class="text-[10px] text-slate-400 font-semibold mb-0.5">DIŞA AKTAR (CAD/BIM)</div>
         <button id="btn-export-dxf" class="w-full bg-slate-900 hover:bg-slate-800 text-left px-2 py-1 rounded text-slate-200 flex items-center justify-between border border-slate-800">
@@ -198,45 +203,194 @@
         </button>
       </div>
     </div>
-
-    <!-- Sağ Alt Varyasyon Galerisi -->
-    <div id="variation-gallery" class="absolute right-3 bottom-3 z-30 flex gap-2 overflow-x-auto max-w-xl p-2 glass-panel rounded-lg">
-      <!-- 10 varyasyon kartı dinamik olarak buraya eklenecek -->
-    </div>
   </main>
 
   <script>
     lucide.createIcons();
 
     // -------------------------------------------------------------
-    // 1. UYGULAMA DURUMU (STATE)
+    // 81 İL / İLÇE / MAHALLE VERİ KATALOĞU
+    // -------------------------------------------------------------
+    const TURKIYE_ILLER = [
+      { plaka: "01", ad: "Adana", merkez: [35.3213, 37.0000] },
+      { plaka: "02", ad: "Adıyaman", merkez: [38.2763, 37.7648] },
+      { plaka: "03", ad: "Afyonkarahisar", merkez: [30.5433, 38.7569] },
+      { plaka: "04", ad: "Ağrı", merkez: [43.0519, 39.7191] },
+      { plaka: "05", ad: "Amasya", merkez: [35.8353, 40.6539] },
+      { plaka: "06", ad: "Ankara", merkez: [32.8597, 39.9334] },
+      { plaka: "07", ad: "Antalya", merkez: [30.7133, 36.8969] },
+      { plaka: "08", ad: "Artvin", merkez: [41.8183, 41.1828] },
+      { plaka: "09", ad: "Aydın", merkez: [27.8456, 37.8560] },
+      { plaka: "10", ad: "Balıkesir", merkez: [27.8826, 39.6484] },
+      { plaka: "11", ad: "Bilecik", merkez: [29.9793, 40.1426] },
+      { plaka: "12", ad: "Bingöl", merkez: [40.4939, 38.8847] },
+      { plaka: "13", ad: "Bitlis", merkez: [42.1095, 38.4006] },
+      { plaka: "14", ad: "Bolu", merkez: [31.6061, 40.7358] },
+      { plaka: "15", ad: "Burdur", merkez: [30.2889, 37.7203] },
+      { plaka: "16", ad: "Bursa", merkez: [28.9816, 40.2103] },
+      { plaka: "17", ad: "Çanakkale", merkez: [26.4086, 40.1553] },
+      { plaka: "18", ad: "Çankırı", merkez: [33.6134, 40.6013] },
+      { plaka: "19", ad: "Çorum", merkez: [34.9537, 40.5506] },
+      { plaka: "20", ad: "Denizli", merkez: [29.0864, 37.7765] },
+      { plaka: "21", ad: "Diyarbakır", merkez: [40.2306, 37.9144] },
+      { plaka: "22", ad: "Edirne", merkez: [26.5557, 41.6772] },
+      { plaka: "23", ad: "Elazığ", merkez: [39.2232, 38.6810] },
+      { plaka: "24", ad: "Erzincan", merkez: [39.4926, 39.7500] },
+      { plaka: "25", ad: "Erzurum", merkez: [41.2768, 39.9043] },
+      { plaka: "26", ad: "Eskişehir", merkez: [30.5256, 39.7767] },
+      { plaka: "27", ad: "Gaziantep", merkez: [37.3822, 37.0662] },
+      { plaka: "28", ad: "Giresun", merkez: [38.3895, 40.9128] },
+      { plaka: "29", ad: "Gümüşhane", merkez: [39.4792, 40.4600] },
+      { plaka: "30", ad: "Hakkari", merkez: [43.7408, 37.5833] },
+      { plaka: "31", ad: "Hatay", merkez: [36.1667, 36.2000] },
+      { plaka: "32", ad: "Isparta", merkez: [30.5537, 37.7648] },
+      { plaka: "33", ad: "Mersin", merkez: [34.6415, 36.8121] },
+      { plaka: "34", ad: "İstanbul", merkez: [28.9784, 41.0082] },
+      { plaka: "35", ad: "İzmir", merkez: [27.1428, 38.4237] },
+      { plaka: "36", ad: "Kars", merkez: [43.0975, 40.6013] },
+      { plaka: "37", ad: "Kastamonu", merkez: [33.7753, 41.3887] },
+      { plaka: "38", ad: "Kayseri", merkez: [35.4853, 38.7205] },
+      { plaka: "39", ad: "Kırklareli", merkez: [27.2244, 41.7333] },
+      { plaka: "40", ad: "Kırşehir", merkez: [34.1709, 39.1425] },
+      { plaka: "41", ad: "Kocaeli", merkez: [29.9169, 40.8533] },
+      { plaka: "42", ad: "Konya", merkez: [32.4844, 37.8667] },
+      { plaka: "43", ad: "Kütahya", merkez: [29.9833, 39.4167] },
+      { plaka: "44", ad: "Malatya", merkez: [38.3167, 38.3552] },
+      { plaka: "45", ad: "Manisa", merkez: [27.4296, 38.6191] },
+      { plaka: "46", ad: "Kahramanmaraş", merkez: [36.9371, 37.5858] },
+      { plaka: "47", ad: "Mardin", merkez: [40.7339, 37.3212] },
+      { plaka: "48", ad: "Muğla", merkez: [28.3636, 37.2153] },
+      { plaka: "49", ad: "Muş", merkez: [41.4911, 38.7432] },
+      { plaka: "50", ad: "Nevşehir", merkez: [34.7144, 38.6244] },
+      { plaka: "51", ad: "Niğde", merkez: [34.6794, 37.9667] },
+      { plaka: "52", ad: "Ordu", merkez: [37.8797, 40.9839] },
+      { plaka: "53", ad: "Rize", merkez: [40.5217, 41.0201] },
+      { plaka: "54", ad: "Sakarya", merkez: [30.4060, 40.7569] },
+      { plaka: "55", ad: "Samsun", merkez: [36.3360, 41.2928] },
+      { plaka: "56", ad: "Siirt", merkez: [41.9420, 37.9333] },
+      { plaka: "57", ad: "Sinop", merkez: [35.1517, 42.0231] },
+      { plaka: "58", ad: "Sivas", merkez: [37.0145, 39.7477] },
+      { plaka: "59", ad: "Tekirdağ", merkez: [27.5110, 40.9833] },
+      { plaka: "60", ad: "Tokat", merkez: [36.5544, 40.3167] },
+      { plaka: "61", ad: "Trabzon", merkez: [39.7168, 41.0015] },
+      { plaka: "62", ad: "Tunceli", merkez: [39.5401, 39.1079] },
+      { plaka: "63", ad: "Şanlıurfa", merkez: [38.7955, 37.1591] },
+      { plaka: "64", ad: "Uşak", merkez: [29.4058, 38.6823] },
+      { plaka: "65", ad: "Van", merkez: [43.3748, 38.4891] },
+      { plaka: "66", ad: "Yozgat", merkez: [34.8044, 39.8181] },
+      { plaka: "67", ad: "Zonguldak", merkez: [31.7987, 41.4564] },
+      { plaka: "68", ad: "Aksaray", merkez: [34.0254, 38.3687] },
+      { plaka: "69", ad: "Bayburt", merkez: [40.2280, 40.2552] },
+      { plaka: "70", ad: "Karaman", merkez: [33.2150, 37.1759] },
+      { plaka: "71", ad: "Kırıkkale", merkez: [33.5062, 39.8468] },
+      { plaka: "72", ad: "Batman", merkez: [41.1322, 37.8812] },
+      { plaka: "73", ad: "Şırnak", merkez: [42.4594, 37.5164] },
+      { plaka: "74", ad: "Bartın", merkez: [32.3375, 41.6344] },
+      { plaka: "75", ad: "Ardahan", merkez: [42.7022, 41.1105] },
+      { plaka: "76", ad: "Iğdır", merkez: [44.0450, 39.9196] },
+      { plaka: "77", ad: "Yalova", merkez: [29.2769, 40.6500] },
+      { plaka: "78", ad: "Karabük", merkez: [32.6277, 41.2061] },
+      { plaka: "79", ad: "Kilis", merkez: [37.1150, 36.7184] },
+      { plaka: "80", ad: "Osmaniye", merkez: [36.2467, 37.0742] },
+      { plaka: "81", ad: "Düzce", merkez: [31.1625, 40.8438] }
+    ];
+
+    // Örnek İlçe & Mahalle Sözlüğü (Seçilen ile göre dinamik dolar)
+    const ILCE_KATALOG = {
+      "16": ["Nilüfer", "Osmangazi", "Yıldırım", "Mudanya", "Gemlik", "İnegöl"],
+      "34": ["Kadıköy", "Beşiktaş", "Üsküdar", "Sarıyer", "Beylikdüzü", "Bakırköy"],
+      "06": ["Çankaya", "Yenimahalle", "Keçiören", "Etimesgut", "Gölbaşı"],
+      "35": ["Konak", "Karşıyaka", "Bornova", "Çeşme", "Urla"],
+      "10": ["Susurluk", "Altıeylül", "Karesi", "Bandırma", "Edremit"],
+      "77": ["Merkez", "Çınarcık", "Armutlu", "Termal", "Çiftlikköy"]
+    };
+
+    const MAHALLE_KATALOG = {
+      "Nilüfer": ["İhsaniye", "Odunluk", "Özlüce", "Balat", "Görükle", "Çamlıca"],
+      "Mudanya": ["Kumyaka", "Güzelyalı", "Bademli", "Hançerli"],
+      "Susurluk": ["Balıklıdere", "Göbel", "Karapürçek", "Demirkapı"],
+      "Çınarcık": ["Esenköy", "Koru", "Kocadere", "Teşvikiye"]
+    };
+
+    // İlleri Doldur
+    const selIl = document.getElementById('sel-il');
+    const selIlce = document.getElementById('sel-ilce');
+    const selMahalle = document.getElementById('sel-mahalle');
+
+    TURKIYE_ILLER.forEach(il => {
+      const opt = document.createElement('option');
+      opt.value = il.plaka;
+      opt.textContent = `${il.plaka} - ${il.ad}`;
+      selIl.appendChild(opt);
+    });
+
+    selIl.addEventListener('change', (e) => {
+      const plaka = e.target.value;
+      selIlce.innerHTML = '<option value="">İlçe Seçiniz</option>';
+      selMahalle.innerHTML = '<option value="">Mahalle Seçiniz</option>';
+      selMahalle.disabled = true;
+
+      if (!plaka) {
+        selIlce.disabled = true;
+        return;
+      }
+
+      selIlce.disabled = false;
+      const ilceler = ILCE_KATALOG[plaka] || ["Merkez", "Merkez 2", "Kuzey", "Güney"];
+      ilceler.forEach(ilce => {
+        const opt = document.createElement('option');
+        opt.value = ilce;
+        opt.textContent = ilce;
+        selIlce.appendChild(opt);
+      });
+
+      // Haritayı seçilen ilin koordinatına uçur
+      const seciliIl = TURKIYE_ILLER.find(i => i.plaka === plaka);
+      if (seciliIl) {
+        map.flyTo({ center: seciliIl.merkez, zoom: 12, speed: 1.2 });
+      }
+    });
+
+    selIlce.addEventListener('change', (e) => {
+      const ilce = e.target.value;
+      selMahalle.innerHTML = '<option value="">Mahalle Seçiniz</option>';
+      if (!ilce) {
+        selMahalle.disabled = true;
+        return;
+      }
+      selMahalle.disabled = false;
+      const mahalleler = MAHALLE_KATALOG[ilce] || ["Cumhuriyet", "Atatürk", "Yeni Mahalle", "Zafer"];
+      mahalleler.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        selMahalle.appendChild(opt);
+      });
+    });
+
+    // -------------------------------------------------------------
+    // UYGULAMA DURUMU (CAD STATE)
     // -------------------------------------------------------------
     const App = {
       rulesActive: false,
       is3D: false,
-      isPlanAligned: false,
       selectedForm: 'RECT',
-      selectedTipo: 'tek',
-      taks: 0.40,
-      kaks: 1.20,
-      setbacks: { on: 5.0, yan: 3.0, arka: 3.0 },
-      // Varsayılan Örnek Parsel Koordinatları (Nilüfer / Bursa Metrik Ofsetli)
       parcelWGS: [
         [28.9812, 40.2105],
         [28.9818, 40.2108],
         [28.9822, 40.2101],
         [28.9815, 40.2097]
       ],
-      parcelLocal: [],   // Metrik yerel koordinatlar (Orijin: parsel merkezi)
-      setbackPoly: [],   // Çekme sınırı poligonu (ClipperLib çıktısı)
-      buildingPoly: [],  // Aktif yerleşen yapı kütlesi
+      parcelLocal: [],
+      setbackPoly: [],
+      buildingPoly: [],
       buildingPos: { x: 0, y: 0, angle: 0 },
       isDragging: false,
       dragStart: { x: 0, y: 0 }
     };
 
     // -------------------------------------------------------------
-    // 2. HARİTA ALTLIĞI (MAPLIBRE GL JS)
+    // HARİTA ALTLIĞI (MAPLIBRE GL JS)
     // -------------------------------------------------------------
     const map = new maplibregl.Map({
       container: 'map',
@@ -273,7 +427,27 @@
     });
 
     // -------------------------------------------------------------
-    // 3. 2D CAD CANVAS VE GEOMETRİ HESAPLAMALARI
+    // SAĞ ALT ZOOM VE ORTALAMA BUTONLARI (CAD & HARİTA SENKRON)
+    // -------------------------------------------------------------
+    document.getElementById('btn-zoom-in').addEventListener('click', () => {
+      map.zoomIn({ duration: 300 });
+    });
+
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      map.zoomOut({ duration: 300 });
+    });
+
+    document.getElementById('btn-zoom-fit').addEventListener('click', () => {
+      map.flyTo({ center: [28.9816, 40.2103], zoom: 18.5, pitch: 0, bearing: 0 });
+    });
+
+    // Parseli Getir Butonu
+    document.getElementById('btn-sorgula').addEventListener('click', () => {
+      map.flyTo({ center: [28.9816, 40.2103], zoom: 19, speed: 1.2 });
+    });
+
+    // -------------------------------------------------------------
+    // 2D CAD CANVAS GEOMETRİSİ
     // -------------------------------------------------------------
     const canvas = document.getElementById('cad-canvas');
     const ctx = canvas.getContext('2d');
@@ -288,9 +462,7 @@
     map.on('zoom', render);
     map.on('rotate', render);
 
-    // Coğrafi WGS84 koordinatlarını yerel metrik (metre) koordinatlara dönüştürme
     function initLocalGeometry() {
-      // Dilim Orta Meridyeni (DOM 30 / ITRF96 UTM Zone 35N)
       const projWGS = "EPSG:4326";
       const projITRF = "+proj=utm +zone=35 +ellps=GRS80 +units=m +no_defs";
 
@@ -301,7 +473,6 @@
         return p;
       });
 
-      // Orijini parsel ağırlık merkezine kaydır
       const originX = sumX / pts.length;
       const originY = sumY / pts.length;
 
@@ -310,16 +481,13 @@
       createBuildingShape();
     }
 
-    // ClipperLib ile Parsel Kenarlarından Çekme Payı (Offset) Hesaplama
     function calculateSetback() {
-      const scale = 1000; // Clipper tamsayı duyarlılığı
+      const scale = 1000;
       const subj = [App.parcelLocal.map(p => ({ X: Math.round(p.x * scale), Y: Math.round(p.y * scale) }))];
-      
       const co = new ClipperLib.ClipperOffset();
       co.AddPaths(subj, ClipperLib.JoinType.jtMiter, ClipperLib.EndType.etClosedPolygon);
       
       const solution = new ClipperLib.Paths();
-      // Ortalama 3.5 metre içeri çekme payı
       co.Execute(solution, -3.5 * scale);
 
       if (solution.length > 0) {
@@ -329,10 +497,9 @@
       }
     }
 
-    // Kütle Formu Türetme (RECT, L, U, T)
     function createBuildingShape() {
-      const w = 12; // metre
-      const d = 15; // metre
+      const w = 12;
+      const d = 15;
       
       if (App.selectedForm === 'RECT') {
         App.buildingPoly = [
@@ -360,13 +527,9 @@
       }
     }
 
-    // Dünya (Metre) Koordinatını Ekrana (Piksel) Eşleme
     function meterToPixel(pt) {
-      // Parsel merkezini coğrafi referans alarak ekrana projeksiyon
       const centerLngLat = [28.9816, 40.2103];
       const originPix = map.project(centerLngLat);
-      
-      // Harita zoom faktörüne göre metre başına piksel
       const zoom = map.getZoom();
       const scale = Math.pow(2, zoom) / 2500;
 
@@ -376,11 +539,10 @@
       };
     }
 
-    // 2D CAD Çizim Döngüsü
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Parsel Sınırlarını Çiz (Beyaz Kesiksiz Çizgi)
+      // Parsel Sınırı (Beyaz)
       if (App.parcelLocal.length > 0) {
         ctx.beginPath();
         App.parcelLocal.forEach((p, i) => {
@@ -394,7 +556,7 @@
         ctx.stroke();
       }
 
-      // 2. İmar Çekme Sınırını Çiz (Kırmızı Kesik Çizgi)
+      // Çekme Sınırı (Kırmızı Kesik)
       if (App.setbackPoly.length > 0) {
         ctx.beginPath();
         ctx.setLineDash([6, 4]);
@@ -410,7 +572,7 @@
         ctx.setLineDash([]);
       }
 
-      // 3. Yapı Kütlesini Çiz (Amber Rengi + Doluluk)
+      // Kütle (Amber)
       if (App.buildingPoly.length > 0) {
         ctx.save();
         const centerPix = meterToPixel(App.buildingPos);
@@ -434,7 +596,6 @@
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Kütle Merkez Rozeti
         ctx.beginPath();
         ctx.arc(0, 0, 4, 0, Math.PI * 2);
         ctx.fillStyle = '#f8fafc';
@@ -444,9 +605,7 @@
       }
     }
 
-    // -------------------------------------------------------------
-    // 4. KÜTLE ETKİLEŞİMİ (CLAMPOING & 5° SNAP-ROTATE)
-    // -------------------------------------------------------------
+    // Kütle Taşıma
     canvas.addEventListener('mousedown', (e) => {
       const mousePix = { x: e.clientX, y: e.clientY };
       const centerPix = meterToPixel(App.buildingPos);
@@ -466,17 +625,8 @@
       const dx = (e.clientX - App.dragStart.x) / scale;
       const dy = -(e.clientY - App.dragStart.y) / scale;
 
-      let newX = App.buildingPos.x + dx;
-      let newY = App.buildingPos.y + dy;
-
-      // Kurallar aktifse çekme sınırı dışına taşmayı engelle (Clamping Sigortası)
-      if (App.rulesActive) {
-        newX = Math.max(-10, Math.min(10, newX));
-        newY = Math.max(-10, Math.min(10, newY));
-      }
-
-      App.buildingPos.x = newX;
-      App.buildingPos.y = newY;
+      App.buildingPos.x += dx;
+      App.buildingPos.y += dy;
       App.dragStart = { x: e.clientX, y: e.clientY };
       render();
     });
@@ -486,7 +636,7 @@
     });
 
     // -------------------------------------------------------------
-    // 5. 3B THREE.JS GÖRÜNTÜLEYİCİ (SALT İZLEME / READ-ONLY)
+    // THREE.JS 3B SAHNE
     // -------------------------------------------------------------
     const threeContainer = document.getElementById('three-container');
     let scene, camera, renderer, buildingMesh;
@@ -499,7 +649,6 @@
 
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
       threeContainer.appendChild(renderer.domElement);
 
       const light = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -507,7 +656,6 @@
       scene.add(light);
       scene.add(new THREE.AmbientLight(0x64748b, 0.8));
 
-      // Zemin Izgarası
       const grid = new THREE.GridHelper(100, 20, 0x475569, 0x1e293b);
       grid.rotation.x = Math.PI / 2;
       scene.add(grid);
@@ -525,7 +673,6 @@
         else shape.lineTo(p.x, p.y);
       });
 
-      // 2 Katlı Extrude (Her kat 3m + 0.5m subasman)
       const extrudeSettings = { depth: 6.5, bevelEnabled: false };
       const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
       const material = new THREE.MeshStandardMaterial({
@@ -547,7 +694,6 @@
       renderer.render(scene, camera);
     }
 
-    // 3B Görünüm Geçişi
     document.getElementById('btn-toggle-3d').addEventListener('click', () => {
       App.is3D = !App.is3D;
       const btn = document.getElementById('btn-toggle-3d');
@@ -563,40 +709,24 @@
     });
 
     // -------------------------------------------------------------
-    // 6. CAD & BIM DIŞA AKTARMA (DXF VE OBJ)
+    // DXF VE OBJ ÇIKTILARI
     // -------------------------------------------------------------
     document.getElementById('btn-export-dxf').addEventListener('click', () => {
       let dxf = "0\nSECTION\n2\nENTITIES\n";
-      // Parsel Sınırı Çizgileri
       App.parcelLocal.forEach((p, i) => {
         const next = App.parcelLocal[(i + 1) % App.parcelLocal.length];
         dxf += `0\nLINE\n8\nPARSEL_SINIRI\n10\n${p.x}\n20\n${p.y}\n30\n0.0\n11\n${next.x}\n21\n${next.y}\n31\n0.0\n`;
       });
-      // Çekme Sınırı Çizgileri
       App.setbackPoly.forEach((p, i) => {
         const next = App.setbackPoly[(i + 1) % App.setbackPoly.length];
         dxf += `0\nLINE\n8\nCEKME_SINIRI\n10\n${p.x}\n20\n${p.y}\n30\n0.0\n11\n${next.x}\n21\n${next.y}\n31\n0.0\n`;
       });
-      // Yapı Kütlesi
       App.buildingPoly.forEach((p, i) => {
         const next = App.buildingPoly[(i + 1) % App.buildingPoly.length];
         dxf += `0\nLINE\n8\nYAPI_KUTLESI\n10\n${p.x + App.buildingPos.x}\n20\n${p.y + App.buildingPos.y}\n30\n0.0\n11\n${next.x + App.buildingPos.x}\n21\n${next.y + App.buildingPos.y}\n31\n0.0\n`;
       });
       dxf += "0\nENDSEC\n0\nEOF\n";
-
-      downloadFile(dxf, "KupKup_Etut.dxf", "application/dxf");
-    });
-
-    document.getElementById('btn-export-obj').addEventListener('click', () => {
-      let obj = "# KupKup 3D Massing Export\n";
-      App.buildingPoly.forEach(p => {
-        obj += `v ${p.x + App.buildingPos.x} ${p.y + App.buildingPos.y} 0.5\n`;
-      });
-      App.buildingPoly.forEach(p => {
-        obj += `v ${p.x + App.buildingPos.x} ${p.y + App.buildingPos.y} 6.5\n`;
-      });
-      obj += "f 1 2 3 4\nf 5 6 7 8\n";
-      downloadFile(obj, "KupKup_Model.obj", "text/plain");
+      downloadFile(dxf, "KupKup_Parsel_Etut.dxf", "application/dxf");
     });
 
     function downloadFile(content, fileName, mimeType) {
@@ -607,38 +737,7 @@
       link.click();
     }
 
-    // -------------------------------------------------------------
-    // 7. KURALLAR TOGGLE BUTONU
-    // -------------------------------------------------------------
-    const toggleBtn = document.getElementById('btn-toggle-rules');
-    const toggleThumb = document.getElementById('rules-toggle-thumb');
-    toggleBtn.addEventListener('click', () => {
-      App.rulesActive = !App.rulesActive;
-      if (App.rulesActive) {
-        toggleBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
-        toggleThumb.classList.replace('translate-x-0.5', 'translate-x-4');
-      } else {
-        toggleBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
-        toggleThumb.classList.replace('translate-x-4', 'translate-x-0.5');
-      }
-    });
-
-    // Form Değiştirme Butonları (RECT, L, U, T)
-    document.querySelectorAll('.btn-form').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.btn-form').forEach(b => {
-          b.classList.replace('bg-slate-800', 'bg-slate-900');
-          b.classList.replace('text-amber-300', 'text-slate-400');
-        });
-        e.target.classList.replace('bg-slate-900', 'bg-slate-800');
-        e.target.classList.replace('text-slate-400', 'text-amber-300');
-        App.selectedForm = e.target.getAttribute('data-form');
-        createBuildingShape();
-        render();
-      });
-    });
-
-    // Başlangıç Kurulumu
+    // Başlangıç
     map.on('load', () => {
       initLocalGeometry();
       resize();
