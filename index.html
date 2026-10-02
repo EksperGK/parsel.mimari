@@ -1,756 +1,1587 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" class="dark h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KüpKüp - Parametrik İmar ve Mimari Ön Etüt Platformu</title>
-  <!-- Tailwind CSS -->
+  <title>KÜPKÜP | CAD/BIM Parametrik İmar ve Mimari Etüt Web Platformu</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- MapLibre GL JS -->
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-  <!-- Three.js (3B Sahne) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- Proj4js (ITRF96 / Coğrafi Dönüşüm) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-  <!-- ClipperLib (Poligon Ofsetleme / Çekme Payları) -->
-  <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
-  <!-- Lucide Icons -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cad: { bg: '#080c14', panel: '#0f172a', card: '#1e293b', border: '#334155', accent: '#38bdf8', green: '#22c55e', amber: '#f59e0b', red: '#ef4444', text: '#f8fafc', muted: '#94a3b8' }
+          },
+          fontFamily: { mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'] }
+        }
+      }
+    }
+  </script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <style>
-    body { margin: 0; padding: 0; overflow: hidden; user-select: none; }
-    #map { position: absolute; inset: 0; z-index: 0; }
-    #cad-canvas { position: absolute; inset: 0; z-index: 10; cursor: crosshair; }
-    #three-container { position: absolute; inset: 0; z-index: 20; display: none; background: #0f172a; }
-    .glass-panel { background: rgba(15, 23, 42, 0.90); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.8); }
+    body { background-color: #080c14; color: #f8fafc; user-select: none; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+    .cad-grid { background-size: 20px 20px; background-image: linear-gradient(to right, rgba(51, 65, 85, 0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(51, 65, 85, 0.15) 1px, transparent 1px); }
+    .glass { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); border: 1px solid rgba(51, 65, 85, 0.7); }
+    .modal-bg { background: rgba(4, 7, 15, 0.82); backdrop-filter: blur(4px); }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 h-screen w-screen flex flex-col font-sans">
+<body class="h-full flex flex-col overflow-hidden text-xs">
 
-  <!-- 1. TAPU VE PROJE BARI (ÜST) -->
-  <header class="h-12 glass-panel z-30 flex items-center justify-between px-3 text-xs">
-    <div class="flex items-center gap-2">
-      <div class="flex items-center gap-1.5 font-bold tracking-wider text-amber-400 text-sm">
-        <span class="w-3 h-3 bg-amber-400 rounded-sm"></span> KüpKüp CAD
+  <!-- ÜST BAR 1: TAPU & CBS ARAÇ ÇUBUĞU -->
+  <header class="h-12 bg-cad-panel border-b border-cad-border px-3 flex items-center justify-between z-30 shrink-0">
+    <div class="flex items-center space-x-2 mr-3 shrink-0">
+      <div class="w-7 h-7 rounded bg-gradient-to-br from-sky-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+        <i data-lucide="box" class="w-4 h-4 text-white"></i>
       </div>
-      <div class="h-4 w-px bg-slate-700 mx-1"></div>
-      
-      <!-- 81 İL / İLÇE / MAHALLE ARDIŞIK SEÇİMİ -->
-      <div class="flex items-center gap-1.5">
-        <select id="sel-il" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200 text-xs w-28">
-          <option value="">İl Seçiniz</option>
-        </select>
-        <select id="sel-ilce" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200 text-xs w-28" disabled>
-          <option value="">İlçe Seçiniz</option>
-        </select>
-        <select id="sel-mahalle" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 outline-none text-slate-200 text-xs w-32" disabled>
-          <option value="">Mahalle Seçiniz</option>
-        </select>
-        <input type="text" id="inp-ada" placeholder="Ada" value="2145" class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-center outline-none text-slate-200 text-xs" />
-        <input type="text" id="inp-parsel" placeholder="Parsel" value="12" class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-center outline-none text-slate-200 text-xs" />
-        <button id="btn-sorgula" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1 rounded transition flex items-center gap-1 shadow text-xs">
-          <i data-lucide="search" class="w-3 h-3"></i> Parseli Getir
-        </button>
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <span class="font-extrabold text-sm tracking-wider text-white">KÜPKÜP</span>
+          <span class="px-1 py-0.2 text-[9px] font-mono bg-sky-950 text-sky-400 border border-sky-800 rounded">CAD/BIM</span>
+        </div>
+        <div class="text-[9px] text-cad-muted tracking-tight">Parametrik İmar & Mimari Etüt Motoru</div>
       </div>
     </div>
 
-    <!-- Hızlı Başlat & Katman Değiştirici -->
-    <div class="flex items-center gap-2">
-      <button id="btn-wizard" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded flex items-center gap-1 shadow text-xs">
-        <i data-lucide="sparkles" class="w-3 h-3"></i> Sihirbaz
-      </button>
-      <div class="h-4 w-px bg-slate-700 mx-1"></div>
-      <button id="btn-toggle-layer" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded flex items-center gap-1 text-xs">
-        <i data-lucide="layers" class="w-3 h-3 text-sky-400"></i> Uydu/Vektör
+    <!-- İdari Seçim Alanı -->
+    <div class="flex items-center space-x-1.5 overflow-x-auto py-1">
+      <div class="flex flex-col">
+        <label class="text-[8px] text-cad-muted font-mono uppercase">İl</label>
+        <select id="selIl" class="h-7 bg-cad-card border border-cad-border rounded px-2 text-white focus:border-cad-accent outline-none">
+          <option value="">İl Seçiniz...</option>
+        </select>
+      </div>
+      <div class="flex flex-col">
+        <label class="text-[8px] text-cad-muted font-mono uppercase">İlçe</label>
+        <select id="selIlce" class="h-7 bg-cad-card border border-cad-border rounded px-2 text-white focus:border-cad-accent outline-none">
+          <option value="">İlçe Seçiniz...</option>
+        </select>
+      </div>
+      <div class="flex flex-col">
+        <label class="text-[8px] text-cad-muted font-mono uppercase">Mahalle</label>
+        <select id="selMahalle" class="h-7 bg-cad-card border border-cad-border rounded px-2 text-white focus:border-cad-accent outline-none">
+          <option value="">Mahalle Seçiniz...</option>
+        </select>
+      </div>
+      <div class="flex flex-col w-16">
+        <label class="text-[8px] text-cad-muted font-mono uppercase">Ada No</label>
+        <input id="inputAda" type="number" placeholder="1483" class="h-7 bg-cad-card border border-cad-border rounded px-2 text-white font-mono focus:border-cad-accent outline-none" />
+      </div>
+      <div class="flex flex-col w-16">
+        <label class="text-[8px] text-cad-muted font-mono uppercase">Parsel No</label>
+        <input id="inputParsel" type="number" placeholder="8" class="h-7 bg-cad-card border border-cad-border rounded px-2 text-white font-mono focus:border-cad-accent outline-none" />
+      </div>
+      <div class="flex flex-col justify-end">
+        <button id="btnSorgula" class="h-7 px-3 bg-cad-green hover:bg-emerald-600 text-white font-semibold rounded flex items-center space-x-1.5 shadow-sm transition">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i>
+          <span>Sorgula</span>
+        </button>
+      </div>
+      <div class="flex flex-col justify-end">
+        <select id="selQuickSample" class="h-7 bg-cad-card/90 border border-sky-600/70 text-sky-300 rounded px-2 text-[11px] focus:border-cad-accent outline-none">
+          <option value="">⚡ Örnek Parsel Yükle...</option>
+          <option value="bursa">Bursa Nilüfer | 1483 Ada / 8 Parsel (845 m² Konut)</option>
+          <option value="istanbul">İstanbul Kadıköy | 120 Ada / 15 Parsel (1280 m² Ayrık)</option>
+          <option value="ankara">Ankara Çankaya | 450 Ada / 4 Parsel (1650 m² Köşe Parsel)</option>
+          <option value="izmir">İzmir Bornova | 780 Ada / 2 Parsel (2420 m² Çoklu Blok)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Katman & Drone Kontrolleri -->
+    <div class="flex items-center space-x-2 shrink-0 ml-2">
+      <div class="flex bg-cad-card border border-cad-border rounded p-0.5">
+        <button id="btnLayerCAD" class="px-2 py-1 rounded bg-cad-accent text-slate-900 font-bold flex items-center space-x-1 transition"><i data-lucide="pen-tool" class="w-3 h-3"></i><span>CAD</span></button>
+        <button id="btnLayerSatellite" class="px-2 py-1 rounded text-cad-muted hover:text-white flex items-center space-x-1 transition"><i data-lucide="globe" class="w-3 h-3"></i><span>Uydu</span></button>
+        <button id="btnLayerOrtho" class="px-2 py-1 rounded text-cad-muted hover:text-white flex items-center space-x-1 transition"><i data-lucide="map" class="w-3 h-3"></i><span>Ortofoto</span></button>
+      </div>
+      <button id="btnOpenDroneModal" class="h-7 px-2.5 bg-cad-card border border-cad-border hover:border-cad-accent text-cad-muted hover:text-white rounded flex items-center space-x-1.5 transition">
+        <i data-lucide="camera" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span>Drone Görseli Yükle</span>
       </button>
     </div>
   </header>
 
-  <!-- 2. İMAR ARAÇ VE KISIT BARI -->
-  <section class="h-10 glass-panel z-30 flex items-center justify-between px-3 text-xs border-t-0">
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-1.5">
-        <label class="text-slate-400">TAKS:</label>
-        <input type="number" id="inp-taks" step="0.05" value="0.40" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
-        <label class="text-slate-400 ml-2">KAKS:</label>
-        <input type="number" id="inp-kaks" step="0.1" value="1.20" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
+  <!-- ÜST BAR 2: İMAR & METRAJ ARAÇ ÇUBUĞU -->
+  <div class="h-14 bg-slate-900/90 border-b border-cad-border px-3 flex items-center justify-between z-20 shrink-0 overflow-x-auto space-x-3">
+    <div class="flex items-center space-x-2 shrink-0">
+      <div class="bg-cad-panel/90 border border-cad-border rounded px-2 py-1 flex items-center space-x-2">
+        <div>
+          <span class="text-[9px] text-cad-muted block">TAKS</span>
+          <input id="inputTaks" type="number" step="0.05" min="0.10" max="0.90" value="0.40" class="w-12 h-5 bg-cad-card border border-cad-border rounded px-1 text-center font-mono text-white text-xs font-bold focus:border-cad-accent outline-none" />
+        </div>
+        <div class="w-px h-6 bg-cad-border"></div>
+        <div>
+          <span class="text-[9px] text-cad-muted block">KAKS (EMSAL)</span>
+          <input id="inputKaks" type="number" step="0.10" min="0.20" max="4.00" value="1.20" class="w-14 h-5 bg-cad-card border border-cad-border rounded px-1 text-center font-mono text-white text-xs font-bold focus:border-cad-accent outline-none" />
+        </div>
+        <div class="w-px h-6 bg-cad-border"></div>
+        <div>
+          <span class="text-[9px] text-cad-muted block">KAT (Hmax)</span>
+          <select id="selKatSayisi" class="h-5 bg-cad-card border border-cad-border rounded px-1 font-mono text-white text-xs focus:border-cad-accent outline-none">
+            <option value="1">1 Kat (3.0m)</option>
+            <option value="2" selected>2 Kat (6.0m)</option>
+            <option value="3">3 Kat (9.0m)</option>
+            <option value="4">4 Kat (12.0m)</option>
+            <option value="5">5 Kat (15.0m)</option>
+            <option value="6">6 Kat (18.0m)</option>
+            <option value="8">8 Kat (24.0m)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metraj Kartları -->
+    <div class="flex items-center space-x-2 shrink-0">
+      <div class="bg-cad-panel/80 border border-cad-border rounded px-2.5 py-1">
+        <span class="text-[9px] text-cad-muted block">Arsa Alanı</span>
+        <span id="txtArsaAlani" class="font-mono text-xs font-bold text-white tracking-wide">-- m²</span>
+      </div>
+      <div class="bg-cad-panel/80 border border-cad-border rounded px-2.5 py-1">
+        <span class="text-[9px] text-cad-muted block">Çekme İçi Alan</span>
+        <span id="txtCekmeAlani" class="font-mono text-xs font-bold text-amber-400 tracking-wide">-- m²</span>
+      </div>
+      <div class="bg-cad-panel/80 border border-cad-border rounded px-2.5 py-1">
+        <span class="text-[9px] text-cad-muted block">İzin Verilen Taban</span>
+        <span id="txtIzinliTaban" class="font-mono text-xs font-bold text-sky-400 tracking-wide">-- m²</span>
+      </div>
+      <div id="cardMevcutTaban" class="bg-cad-panel/80 border border-cad-border rounded px-2.5 py-1 transition">
+        <span class="text-[9px] text-cad-muted block">Mevcut Taban</span>
+        <div class="flex items-center space-x-1">
+          <span id="txtMevcutTaban" class="font-mono text-xs font-bold text-emerald-400 tracking-wide">-- m²</span>
+          <span id="badgeTaksWarning" class="hidden text-[8px] bg-red-600 text-white font-bold px-1 rounded animate-pulse">TAKS AŞILDI!</span>
+        </div>
+      </div>
+      <div class="bg-cad-panel/80 border border-cad-border rounded px-2.5 py-1">
+        <span class="text-[9px] text-cad-muted block">Toplam İnşaat (KAKS)</span>
+        <span id="txtToplamInsaat" class="font-mono text-xs font-bold text-indigo-400 tracking-wide">-- m²</span>
+      </div>
+    </div>
+
+    <!-- Kat Sekmeleri & Modallar -->
+    <div class="flex items-center space-x-2 shrink-0">
+      <div class="flex bg-cad-panel border border-cad-border rounded p-0.5" id="floorTabs">
+        <button data-floor="0" class="btn-floor px-2.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30">Zemin</button>
+        <button data-floor="1" class="btn-floor px-2.5 py-0.5 rounded text-cad-muted hover:text-white">1. Kat</button>
+        <button data-floor="roof" class="btn-floor px-2.5 py-0.5 rounded text-cad-muted hover:text-white">Çatı</button>
+      </div>
+      <button id="btnOpenImarDocModal" class="h-7 px-2 bg-cad-panel border border-cad-border hover:border-cad-accent text-cad-muted hover:text-white rounded flex items-center space-x-1">
+        <i data-lucide="file-text" class="w-3.5 h-3.5 text-sky-400"></i><span>İmar Durumu Yükle</span>
+      </button>
+      <button id="btnOpenYonetmelikModal" class="h-7 px-2 bg-cad-panel border border-cad-border hover:border-cad-accent text-cad-muted hover:text-white rounded flex items-center space-x-1">
+        <i data-lucide="book-open" class="w-3.5 h-3.5 text-emerald-400"></i><span>İmar Yönetmelik</span>
+      </button>
+      <!-- Kurallar Sigorta Butonu (Varsayılan: KAPALI) -->
+      <div class="flex items-center bg-cad-panel border border-cad-border rounded px-2 h-7 space-x-1.5">
+        <button id="btnOpenKurallarModal" class="text-cad-text hover:text-sky-300 font-medium flex items-center space-x-1">
+          <i data-lucide="sliders" class="w-3.5 h-3.5 text-amber-400"></i><span>Kurallar</span>
+        </button>
+        <div class="w-px h-4 bg-cad-border"></div>
+        <label class="relative inline-flex items-center cursor-pointer" title="Kuralları Zorla">
+          <input type="checkbox" id="chkRulesActive" class="sr-only peer">
+          <div class="w-7 h-4 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cad-green"></div>
+          <span id="lblRulesState" class="ml-1 text-[9px] font-mono text-cad-muted">KAPALI</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANA ÇALIŞMA ALANI -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- SOL PANEL: PARAMETRİK GEOMETRİ -->
+    <aside id="leftSidebar" class="w-72 bg-cad-panel border-r border-cad-border flex flex-col shrink-0 z-10">
+      <div class="p-2.5 border-b border-cad-border flex items-center justify-between">
+        <span class="font-bold text-xs uppercase tracking-wider text-sky-400 flex items-center space-x-1">
+          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i><span>Tipoloji & Form</span>
+        </span>
+        <span class="text-[9px] bg-slate-800 text-cad-muted px-1.5 py-0.5 rounded font-mono">Parametrik CAD</span>
       </div>
 
-      <div class="h-4 w-px bg-slate-700"></div>
+      <div class="flex-1 overflow-y-auto p-2.5 space-y-3.5">
+        <div>
+          <label class="text-[10px] text-cad-muted block mb-1 font-semibold uppercase">Blok Tipolojisi</label>
+          <div class="grid grid-cols-3 gap-1" id="tipolojiGrid">
+            <button data-type="single" class="btn-tipo p-1.5 rounded bg-sky-950 border border-sky-500 text-sky-300 font-bold flex flex-col items-center">
+              <i data-lucide="square" class="w-4 h-4 mb-1"></i><span>Tek Blok</span>
+            </button>
+            <button data-type="twin" class="btn-tipo p-1.5 rounded bg-cad-card border border-cad-border text-cad-muted hover:text-white flex flex-col items-center">
+              <i data-lucide="columns-2" class="w-4 h-4 mb-1"></i><span>İkiz Blok</span>
+            </button>
+            <button data-type="multi" class="btn-tipo p-1.5 rounded bg-cad-card border border-cad-border text-cad-muted hover:text-white flex flex-col items-center">
+              <i data-lucide="layout-dashboard" class="w-4 h-4 mb-1"></i><span>Çoklu (3+)</span>
+            </button>
+          </div>
+        </div>
 
-      <div class="flex items-center gap-1.5">
-        <label class="text-slate-400">Bahçe:</label>
-        <input type="text" id="inp-kot-bahce" value="±0.00" class="w-12 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
-        <label class="text-slate-400 ml-1">Subasman:</label>
-        <input type="text" id="inp-kot-zemin" value="+0.50m" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center text-slate-200" />
-      </div>
+        <div id="panelSingleBlock" class="space-y-3">
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 font-semibold uppercase">Form Şablonu</label>
+            <div class="grid grid-cols-3 gap-1 text-[11px]" id="formTemplateGrid">
+              <button data-form="rect" class="btn-form p-1.5 bg-sky-950 border border-sky-500 text-sky-300 rounded font-semibold text-center">Dikdörtgen</button>
+              <button data-form="L" class="btn-form p-1.5 bg-cad-card border border-cad-border text-cad-muted hover:text-white rounded font-semibold text-center">L-Form</button>
+              <button data-form="U" class="btn-form p-1.5 bg-cad-card border border-cad-border text-cad-muted hover:text-white rounded font-semibold text-center">U-Form</button>
+              <button data-form="T" class="btn-form p-1.5 bg-cad-card border border-cad-border text-cad-muted hover:text-white rounded font-semibold text-center">T-Form</button>
+              <button data-form="Z" class="btn-form p-1.5 bg-cad-card border border-cad-border text-cad-muted hover:text-white rounded font-semibold text-center">H / Z-Form</button>
+              <button data-form="plus" class="btn-form p-1.5 bg-cad-card border border-cad-border text-cad-muted hover:text-white rounded font-semibold text-center">+-Form</button>
+            </div>
+          </div>
 
-      <div class="h-4 w-px bg-slate-700"></div>
+          <div class="bg-cad-card/60 border border-cad-border rounded p-2 space-y-1.5">
+            <span class="text-[9px] text-cad-muted uppercase block font-semibold">Boyutsal Sınırlar (cm)</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="text-[8px] text-cad-muted block">Min Kenar</span>
+                <input id="inputMinKenar" type="number" value="400" step="50" class="w-full h-6 bg-cad-panel border border-cad-border rounded px-1.5 text-center font-mono text-white text-xs" />
+              </div>
+              <div>
+                <span class="text-[8px] text-cad-muted block">Maks Kenar</span>
+                <input id="inputMaxKenar" type="number" value="3200" step="100" class="w-full h-6 bg-cad-panel border border-cad-border rounded px-1.5 text-center font-mono text-white text-xs" />
+              </div>
+            </div>
+          </div>
 
-      <!-- Katlar -->
-      <div class="flex items-center gap-1" id="floor-tabs">
-        <button class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/40 font-medium active-floor" data-floor="0">Zemin (h:3.0m)</button>
-        <button class="px-2 py-0.5 bg-slate-900 text-slate-400 hover:text-slate-200 rounded border border-slate-800" data-floor="1">1. Kat (h:3.0m)</button>
-        <button class="px-2 py-0.5 bg-slate-900 text-slate-400 hover:text-slate-200 rounded border border-slate-800" data-floor="2">Çatı</button>
-      </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 font-semibold uppercase">Vaziyet Yerleşim Odağı</label>
+            <div class="space-y-1 bg-cad-card/60 border border-cad-border rounded p-2">
+              <label class="flex items-center space-x-2 cursor-pointer text-slate-300 hover:text-white">
+                <input type="radio" name="placementCrit" value="road" checked class="text-sky-500 focus:ring-0"><span>Yola Yakın (Ön Bahçeye Hizalı)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer text-slate-300 hover:text-white">
+                <input type="radio" name="placementCrit" value="rear" class="text-sky-500 focus:ring-0"><span>Yoldan Uzak (Arka Bahçeye Hizalı)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer text-slate-300 hover:text-white">
+                <input type="radio" name="placementCrit" value="center" class="text-sky-500 focus:ring-0"><span>Serbest / Dengeli (Ağırlık Merkezi)</span>
+              </label>
+            </div>
+          </div>
+        </div>
 
-      <div class="h-4 w-px bg-slate-700"></div>
+        <div id="panelTwinBlock" class="hidden space-y-3">
+          <div class="bg-cad-card/60 border border-cad-border rounded p-2 space-y-2">
+            <label class="text-[10px] text-cad-muted block font-semibold uppercase">İkiz Düzeni</label>
+            <div class="grid grid-cols-2 gap-1">
+              <button id="btnTwinBitisk" class="p-1.5 bg-sky-950 border border-sky-500 text-sky-300 rounded font-semibold text-center">Bitişik Nizam</button>
+              <button id="btnTwinAyrik" class="p-1.5 bg-cad-card border border-cad-border text-cad-muted rounded font-semibold text-center">Ayrık Nizam</button>
+            </div>
+            <div>
+              <span class="text-[9px] text-cad-muted block">Bloklar Arası Mesafe (m)</span>
+              <input id="inputTwinGap" type="number" value="4.0" step="0.5" class="w-full h-6 bg-cad-panel border border-cad-border rounded px-1.5 text-center font-mono text-white text-xs" />
+            </div>
+          </div>
+        </div>
 
-      <!-- Kural Sigortası -->
-      <div class="flex items-center gap-2">
-        <button id="btn-yonetmelik" class="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded px-2 py-0.5 flex items-center gap-1">
-          <i data-lucide="book-open" class="w-3 h-3 text-sky-400"></i> İmar Notu
+        <div id="panelMultiBlock" class="hidden space-y-3">
+          <div class="bg-cad-card/60 border border-cad-border rounded p-2 space-y-2">
+            <label class="text-[10px] text-cad-muted block font-semibold uppercase">Çoklu Blok Düzeni</label>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="text-[8px] text-cad-muted block">Blok Adedi</span>
+                <select id="selMultiCount" class="w-full h-6 bg-cad-panel border border-cad-border rounded px-1 text-white font-mono">
+                  <option value="3">3 Blok</option>
+                  <option value="4" selected>4 Blok</option>
+                  <option value="5">5 Blok</option>
+                  <option value="6">6 Blok</option>
+                </select>
+              </div>
+              <div>
+                <span class="text-[8px] text-cad-muted block">Min Blok Arası (m)</span>
+                <input id="inputMultiGap" type="number" value="6.0" step="0.5" class="w-full h-6 bg-cad-panel border border-cad-border rounded px-1.5 text-center font-mono text-white text-xs" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button id="btnGenerateVariations" class="w-full py-2.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold rounded shadow-lg shadow-sky-950 flex items-center justify-center space-x-2 transition">
+          <i data-lucide="wand-2" class="w-4 h-4"></i><span>10 Farklı Varyasyon Üret</span>
         </button>
 
-        <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded px-2 py-0.5">
-          <span class="text-slate-400">Kurallar:</span>
-          <button id="btn-toggle-rules" class="relative inline-flex h-4 w-8 items-center rounded-full bg-slate-700 transition">
-            <span id="rules-toggle-thumb" class="inline-block h-3 w-3 transform rounded-full bg-white transition translate-x-0.5"></span>
-          </button>
+        <div class="border-t border-cad-border pt-3">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] text-cad-muted uppercase font-semibold flex items-center space-x-1">
+              <i data-lucide="ruler" class="w-3 h-3 text-amber-400"></i><span>Kenar Çekme Mesafeleri</span>
+            </span>
+            <span class="text-[8px] text-slate-500">Kenara tıkla & düzenle</span>
+          </div>
+          <div id="edgeSetbackList" class="space-y-1 max-h-36 overflow-y-auto pr-1">
+            <div class="text-[10px] text-slate-500 italic p-2 text-center">Parsel sorgusu yapıldığında kenarlar burada listelenecektir.</div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <!-- Metraj Özeti -->
-    <div class="flex items-center gap-3 text-[11px]">
-      <div>Arsa: <span id="lbl-arsa" class="font-bold text-slate-200">650.00 m²</span></div>
-      <div>Çekme İçi: <span id="lbl-cekme" class="font-bold text-sky-400">345.20 m²</span></div>
-      <div>İzin Taban (TAKS): <span id="lbl-izin" class="font-bold text-emerald-400">260.00 m²</span></div>
-      <div>Kütle: <span id="lbl-kutle" class="font-bold text-amber-400">180.00 m²</span></div>
-    </div>
-  </section>
-
-  <!-- 3. ANA ÇALIŞMA ALANI -->
-  <main class="relative flex-1 w-full h-full overflow-hidden">
-    <div id="map"></div>
-    <canvas id="cad-canvas"></canvas>
-    <div id="three-container"></div>
-
-    <!-- Sol Tipoloji ve Kütle Paneli -->
-    <aside class="absolute left-3 top-3 w-64 glass-panel rounded-lg p-3 z-30 flex flex-col gap-2.5 text-xs shadow-2xl">
-      <div class="font-semibold text-slate-300 border-b border-slate-700/60 pb-1.5 flex justify-between items-center">
-        <span>PARAMETRİK KÜTLE</span>
-        <span class="text-[10px] text-amber-400">V11 PRO</span>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-slate-400">Tipoloji Modeli:</label>
-        <div class="grid grid-cols-3 gap-1 text-center">
-          <button class="btn-tipo active bg-slate-800 border border-slate-600 py-1 rounded" data-tipo="tek">Tek Blok</button>
-          <button class="btn-tipo bg-slate-900 border border-slate-800 py-1 rounded text-slate-400" data-tipo="ikiz">İkiz</button>
-          <button class="btn-tipo bg-slate-900 border border-slate-800 py-1 rounded text-slate-400" data-tipo="ayrik">Ayrık</button>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-slate-400">Form Şablonu:</label>
-        <div class="grid grid-cols-4 gap-1 text-center font-bold">
-          <button class="btn-form active bg-slate-800 border border-slate-600 py-1 rounded text-amber-300" data-form="RECT">RECT</button>
-          <button class="btn-form bg-slate-900 border border-slate-800 py-1 rounded text-slate-400" data-form="L">L</button>
-          <button class="btn-form bg-slate-900 border border-slate-800 py-1 rounded text-slate-400" data-form="U">U</button>
-          <button class="btn-form bg-slate-900 border border-slate-800 py-1 rounded text-slate-400" data-form="T">T</button>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-slate-400">Kenar Çekme Payları (m):</label>
-        <div class="grid grid-cols-3 gap-1">
-          <div><span class="text-[10px] text-slate-500">Ön/Yol</span><input id="set-on" type="number" value="5.0" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded p-1 text-center" /></div>
-          <div><span class="text-[10px] text-slate-500">Yanlar</span><input id="set-yan" type="number" value="3.0" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded p-1 text-center" /></div>
-          <div><span class="text-[10px] text-slate-500">Arka</span><input id="set-arka" type="number" value="3.0" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded p-1 text-center" /></div>
-        </div>
-      </div>
-
-      <button id="btn-generate" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded transition flex justify-center items-center gap-1 shadow">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 10 Varyasyon Türet
-      </button>
     </aside>
 
-    <!-- SAĞ ALT: PROFESYONEL CAD ZOOM VE HİZALAMA BUTONLARI -->
-    <div class="absolute right-4 bottom-6 z-30 flex flex-col gap-1.5 glass-panel p-1.5 rounded-lg shadow-2xl">
-      <button id="btn-zoom-in" title="Yakınlaştır (+)" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded flex items-center justify-center font-bold text-base transition">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-      </button>
-      <button id="btn-zoom-out" title="Uzaklaştır (-)" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded flex items-center justify-center font-bold text-base transition">
-        <i data-lucide="minus" class="w-4 h-4"></i>
-      </button>
-      <div class="w-full h-px bg-slate-700 my-0.5"></div>
-      <button id="btn-zoom-fit" title="Parseli Ortala / Sığdır" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded flex items-center justify-center transition">
-        <i data-lucide="focus" class="w-4 h-4"></i>
-      </button>
-    </div>
+    <!-- MERKEZ VIEWPORT -->
+    <main class="flex-1 flex flex-col bg-cad-bg relative overflow-hidden">
+      <div class="absolute top-3 left-3 right-3 flex items-center justify-between z-20 pointer-events-none">
+        <div class="pointer-events-auto flex items-center space-x-2">
+          <div id="statusBadge" class="glass px-3 py-1.5 rounded-full flex items-center space-x-2 text-[11px] shadow-lg">
+            <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+            <span id="statusText" class="font-mono text-slate-200">CAD Motoru Hazır | Parsel Sorgulayınız</span>
+          </div>
+          <div id="activeVariationTag" class="hidden glass px-2.5 py-1.5 rounded-full text-[11px] font-mono text-sky-300 font-bold border-sky-800">Var #1 Aktif</div>
+        </div>
 
-    <!-- Sağ Üst Görüntüleme ve CAD Export -->
-    <div class="absolute right-3 top-3 z-30 flex flex-col gap-2">
-      <div class="glass-panel rounded-lg p-1 flex items-center gap-1">
-        <button id="btn-toggle-3d" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs flex items-center gap-1">
-          <i data-lucide="box" class="w-3.5 h-3.5 text-amber-400"></i> 3B Kütle
-        </button>
-        <button id="btn-plan-view" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center gap-1">
-          <i data-lucide="compass" class="w-3.5 h-3.5 text-sky-400"></i> İç Plan (90°)
-        </button>
+        <div class="pointer-events-auto flex items-center space-x-2">
+          <div class="flex bg-cad-panel/90 border border-cad-border rounded-lg p-0.5 shadow-xl">
+            <button id="btnView2D" class="px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 font-bold flex items-center space-x-1.5 transition">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i><span>2D CAD</span>
+            </button>
+            <button id="btnView3D" class="px-3 py-1.5 rounded-md text-cad-muted hover:text-white flex items-center space-x-1.5 transition">
+              <i data-lucide="box" class="w-3.5 h-3.5"></i><span>3D Kütle</span>
+            </button>
+          </div>
+          <button id="btnEnterFloorPlan" class="h-8 px-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-extrabold rounded-lg flex items-center space-x-1.5 shadow-lg shadow-amber-950/40 transition">
+            <i data-lucide="drafting-compass" class="w-4 h-4"></i><span>İç Plana Geç (90° Dikleştir)</span>
+          </button>
+          <div class="flex bg-cad-panel/90 border border-cad-border rounded-lg p-0.5 shadow-xl">
+            <button id="btnZoomIn" class="w-7 h-7 flex items-center justify-center text-cad-muted hover:text-white rounded hover:bg-slate-800" title="Yaklaş (+)"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+            <button id="btnZoomOut" class="w-7 h-7 flex items-center justify-center text-cad-muted hover:text-white rounded hover:bg-slate-800" title="Uzaklaş (-)"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+            <button id="btnZoomExtents" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:text-sky-300 rounded hover:bg-slate-800" title="Ekrana Sığdır"><i data-lucide="maximize" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
       </div>
 
-      <div class="glass-panel rounded-lg p-2 flex flex-col gap-1 text-xs">
-        <div class="text-[10px] text-slate-400 font-semibold mb-0.5">DIŞA AKTAR (CAD/BIM)</div>
-        <button id="btn-export-dxf" class="w-full bg-slate-900 hover:bg-slate-800 text-left px-2 py-1 rounded text-slate-200 flex items-center justify-between border border-slate-800">
-          <span>AutoCAD (.DXF)</span>
-          <i data-lucide="download" class="w-3 h-3 text-slate-400"></i>
-        </button>
-        <button id="btn-export-obj" class="w-full bg-slate-900 hover:bg-slate-800 text-left px-2 py-1 rounded text-slate-200 flex items-center justify-between border border-slate-800">
-          <span>3D Mesh (.OBJ)</span>
-          <i data-lucide="download" class="w-3 h-3 text-slate-400"></i>
+      <!-- Kat Planı Üst Kontrol Barı -->
+      <div id="floorPlanControlBar" class="hidden absolute top-14 left-1/2 -translate-x-1/2 z-20 pointer-events-auto flex items-center space-x-2 glass px-3 py-1.5 rounded-xl shadow-2xl border-amber-500/40">
+        <span class="text-amber-400 font-bold flex items-center space-x-1 mr-2 text-[11px]"><i data-lucide="compass" class="w-4 h-4"></i><span>Kat Planı Modu</span></span>
+        <button id="btnRotateLeft90" class="h-7 px-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded flex items-center space-x-1 font-mono"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-sky-400"></i><span>Sola 90° Çevir</span></button>
+        <button id="btnRotateRight90" class="h-7 px-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded flex items-center space-x-1 font-mono"><i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-sky-400"></i><span>Sağa 90° Çevir</span></button>
+        <div class="w-px h-5 bg-cad-border"></div>
+        <button id="btnExitFloorPlan" class="h-7 px-3 bg-red-600/80 hover:bg-red-600 text-white font-bold rounded flex items-center space-x-1"><i data-lucide="x" class="w-3.5 h-3.5"></i><span>Vaziyete Dön</span></button>
+      </div>
+
+      <div id="viewportContainer" class="flex-1 w-full h-full relative cursor-crosshair cad-grid">
+        <canvas id="cadCanvas" class="w-full h-full block absolute inset-0"></canvas>
+        <div id="threeContainer" class="w-full h-full absolute inset-0 hidden"></div>
+      </div>
+
+      <!-- Kenar Bağlam Menüsü -->
+      <div id="edgeContextPopover" class="hidden absolute z-30 glass rounded-lg shadow-2xl p-2.5 border-sky-500/50 w-60 text-slate-100 pointer-events-auto">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-1.5 mb-2">
+          <div class="flex items-center space-x-1 text-sky-400 font-bold"><i data-lucide="move" class="w-3.5 h-3.5"></i><span id="popoverEdgeTitle">Kenar #1 Çekme</span></div>
+          <button id="btnCloseEdgePopover" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+        </div>
+        <div class="space-y-1.5">
+          <button data-type="yol" data-val="5.0" class="btn-edge-preset w-full py-1 px-2 rounded bg-sky-950/80 hover:bg-sky-900 border border-sky-800 text-sky-300 font-semibold flex items-center justify-between"><span>Yol Cephesi</span><span class="font-mono text-sky-400">5.0 m</span></button>
+          <button data-type="yan" data-val="3.0" class="btn-edge-preset w-full py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 border border-amber-800/40 text-amber-300 font-semibold flex items-center justify-between"><span>Yan Bahçe</span><span class="font-mono text-amber-400">3.0 m</span></button>
+          <button data-type="arka" data-val="3.0" class="btn-edge-preset w-full py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 border border-orange-800/40 text-orange-300 font-semibold flex items-center justify-between"><span>Arka Bahçe</span><span class="font-mono text-orange-400">3.0 m</span></button>
+          <div class="pt-1 border-t border-slate-700 flex items-center space-x-1.5">
+            <input id="inputCustomEdgeSetback" type="number" step="0.5" min="0" max="30" placeholder="Özel (m)" class="flex-1 h-6 bg-slate-900 border border-slate-700 rounded px-1.5 text-center font-mono text-white text-xs outline-none focus:border-sky-400" />
+            <button id="btnApplyCustomEdge" class="h-6 px-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded text-[10px]">Uygula</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sol Alt Bilgi Bandı -->
+      <div class="absolute bottom-3 left-3 z-20 flex items-center space-x-3 pointer-events-none">
+        <div class="glass px-3 py-1.5 rounded-lg flex items-center space-x-2 text-[11px] font-mono shadow-xl pointer-events-auto">
+          <div class="flex flex-col items-center">
+            <div id="scaleBarLine" class="w-16 h-1 bg-sky-400 rounded-full border border-sky-200"></div>
+            <span id="scaleBarText" class="text-[9px] text-slate-300 mt-0.5">10 m</span>
+          </div>
+          <div class="w-px h-6 bg-cad-border"></div>
+          <div><span class="text-[8px] text-cad-muted block">ÖLÇEK</span><span id="txtScaleRatio" class="text-white font-bold">1:200</span></div>
+        </div>
+        <div class="glass px-3 py-1.5 rounded-lg flex items-center space-x-2 text-[11px] font-mono shadow-xl pointer-events-auto">
+          <i data-lucide="trees" class="w-4 h-4 text-emerald-400"></i>
+          <div><span class="text-[8px] text-cad-muted block">Net Bahçe Alanı</span><span id="txtNetBahceAlani" class="text-emerald-400 font-bold">-- m²</span></div>
+        </div>
+        <div id="projectionBadge" class="hidden glass px-2.5 py-1.5 rounded-lg text-[10px] font-mono text-slate-400 shadow-xl pointer-events-auto">
+          ITRF96 TM 3° (DOM: <span id="txtDOM" class="text-sky-300">--</span>)
+        </div>
+      </div>
+
+      <!-- Sağ Alt Export Çubuğu -->
+      <div class="absolute bottom-3 right-3 z-20 flex items-center space-x-1.5 pointer-events-auto glass p-1 rounded-xl shadow-2xl border-slate-700">
+        <button id="btnExportDXF" class="h-8 px-2.5 bg-cad-card hover:bg-slate-800 text-sky-400 border border-sky-800/60 rounded-lg flex items-center space-x-1.5 transition font-semibold" title="AutoCAD .DXF"><i data-lucide="download" class="w-3.5 h-3.5"></i><span>.DXF (AutoCAD)</span></button>
+        <button id="btnExportSVG" class="h-8 px-2.5 bg-cad-card hover:bg-slate-800 text-emerald-400 border border-emerald-800/60 rounded-lg flex items-center space-x-1.5 transition font-semibold" title="Vektörel Çizim (.SVG)"><i data-lucide="file-code" class="w-3.5 h-3.5"></i><span>.SVG</span></button>
+        <button id="btnExportPDF" class="h-8 px-2.5 bg-cad-card hover:bg-slate-800 text-amber-400 border border-amber-800/60 rounded-lg flex items-center space-x-1.5 transition font-semibold" title="Ölçekli Mimari Sunum (.PDF)"><i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>.PDF</span></button>
+        <button id="btnExportOBJ" class="h-8 px-2.5 bg-cad-card hover:bg-slate-800 text-indigo-400 border border-indigo-800/60 rounded-lg flex items-center space-x-1.5 transition font-semibold" title="3D Kütle Modeli (.OBJ)"><i data-lucide="box" class="w-3.5 h-3.5"></i><span>.OBJ (3D)</span></button>
+      </div>
+    </main>
+
+    <!-- SAĞ PANEL: VARYASYON GALERİSİ -->
+    <aside id="rightSidebar" class="w-80 bg-cad-panel border-l border-cad-border flex flex-col shrink-0 z-10">
+      <div class="p-2.5 border-b border-cad-border flex items-center justify-between">
+        <div>
+          <span class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center space-x-1">
+            <i data-lucide="gallery-thumbnails" class="w-3.5 h-3.5"></i><span>Varyasyon Galerisi</span>
+          </span>
+          <span class="text-[9px] text-cad-muted block">10 Özgün Mimari Alternatif</span>
+        </div>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 rounded">10 Form</span>
+      </div>
+      <div class="flex-1 overflow-y-auto p-2.5 space-y-2.5" id="variationCardsContainer">
+        <div id="variationEmptyState" class="text-center py-12 px-3 text-cad-muted space-y-2">
+          <i data-lucide="sparkles" class="w-8 h-8 mx-auto text-slate-600"></i>
+          <p class="font-medium">Varyasyonlar Hazır Değil</p>
+          <p class="text-[10px] text-slate-500 leading-relaxed">Yukarıdan bir parsel sorguladığınızda veya örnek parsellerden birini seçtiğinizde yüksek standart sapmalı 10 özgün kütle varyasyonu burada minyatür olarak oluşturulacaktır.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MODALLAR -->
+  <!-- 1. Kural Motoru Modalı -->
+  <div id="modalKurallar" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-bg">
+    <div class="bg-cad-panel border border-cad-border rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="p-3 border-b border-cad-border flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center space-x-2"><i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i><span class="font-bold text-sm text-white">Geometri ve Yerleşim Kural Motoru</span></div>
+        <button id="btnCloseKurallarModal" class="text-cad-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-3 bg-slate-950/60 border-b border-cad-border flex items-center justify-between">
+        <div><span class="text-xs font-semibold text-white block">Kural Motoru Sigortası</span><span class="text-[10px] text-cad-muted">Açık olduğunda kurallar geometri oluşumuna zorunlu kılınır.</span></div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="chkModalRulesActive" class="sr-only peer">
+          <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cad-green"></div>
+        </label>
+      </div>
+      <div class="flex border-b border-cad-border bg-slate-900/40 px-3 pt-2 space-x-1">
+        <button data-tab="tabVaziyet" class="btn-rule-tab px-3 py-1.5 border-b-2 border-sky-400 text-sky-400 font-bold text-xs">Vaziyet Planı</button>
+        <button data-tab="tabKutle" class="btn-rule-tab px-3 py-1.5 border-b-2 border-transparent text-cad-muted hover:text-white font-medium text-xs">Kütle Kuralları</button>
+        <button data-tab="tabPlan" class="btn-rule-tab px-3 py-1.5 border-b-2 border-transparent text-cad-muted hover:text-white font-medium text-xs">Plan Kuralları</button>
+      </div>
+      <div class="p-4 overflow-y-auto space-y-3.5 flex-1">
+        <div id="tabVaziyet" class="rule-tab-content space-y-3">
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Bloklar Arası Mesafe (m)</label>
+            <input id="ruleMinBlockDist" type="number" step="0.5" value="6.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+            <span class="text-[9px] text-slate-500">Çoklu bloklarda bloklar arası açık mesafe bu değerden küçük olamaz.</span>
+          </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Yan Bahçe Mesafesi (m)</label>
+            <input id="ruleMinSideYard" type="number" step="0.5" value="3.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+          </div>
+        </div>
+        <div id="tabKutle" class="rule-tab-content hidden space-y-3">
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Kenar Uzunluğu (m)</label>
+            <input id="ruleMinEdgeLength" type="number" step="0.5" value="4.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+            <span class="text-[9px] text-slate-500">Üretilen L, U, T kütlelerinde hiçbir kol bu genişlikten dar olamaz.</span>
+          </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Maks. Bina Cephe Genişliği (m)</label>
+            <input id="ruleMaxFacadeWidth" type="number" step="1.0" value="35.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+          </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Kütle En-Boy Oranı</label>
+            <input id="ruleMinAspectRatio" type="number" step="0.05" value="0.25" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+          </div>
+        </div>
+        <div id="tabPlan" class="rule-tab-content hidden space-y-3">
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Merdiven Kovası Alanı (m²)</label>
+            <input id="ruleMinStairArea" type="number" step="0.5" value="8.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+            <span class="text-[9px] text-slate-500">İç plan modunda düşey sirkülasyon çekirdeği bu büyüklüğe kilitlenir.</span>
+          </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Yaşam Alanı (Salon) Alanı (m²)</label>
+            <input id="ruleMinLivingRoom" type="number" step="1.0" value="20.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+          </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Yatak Odası Alanı (m²)</label>
+            <input id="ruleMinBedroom" type="number" step="1.0" value="10.0" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+          </div>
+          <div>
+            <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Min. Koridor Genişliği (m)</label>
+            <input id="ruleMinCorridorWidth" type="number" step="0.1" value="1.20" class="w-full h-8 bg-cad-card border border-cad-border rounded px-2 font-mono text-white text-xs outline-none focus:border-cad-accent" />
+          </div>
+        </div>
+      </div>
+      <div class="p-3 border-t border-cad-border bg-slate-900/60 flex items-center justify-end space-x-2">
+        <button id="btnSaveKurallar" class="h-8 px-4 bg-cad-accent hover:bg-sky-400 text-slate-950 font-bold rounded flex items-center space-x-1">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Kaydet ve Uygula</span>
         </button>
       </div>
     </div>
-  </main>
+  </div>
 
+  <!-- 2. İmar Yönetmelik Modalı -->
+  <div id="modalYonetmelik" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-bg">
+    <div class="bg-cad-panel border border-cad-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="p-3 border-b border-cad-border flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center space-x-2"><i data-lucide="book-open" class="w-4 h-4 text-emerald-400"></i><span class="font-bold text-sm text-white">İmar Yönetmeliği & Plan Notları</span></div>
+        <button id="btnCloseYonetmelikModal" class="text-cad-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-4 overflow-y-auto space-y-4 flex-1 text-slate-300">
+        <div class="bg-slate-900/80 border border-slate-700/60 rounded-lg p-3 space-y-2">
+          <h4 class="font-bold text-sky-400 text-xs">Planlı Alanlar İmar Yönetmeliği Temel Standartları</h4>
+          <ul class="list-disc list-inside space-y-1 text-[11px] leading-relaxed">
+            <li><strong>Yol Çekme Mesafesi:</strong> İmar planında belirtilmemişse genel olarak en az 5.00 m'dir.</li>
+            <li><strong>Yan ve Arka Bahçe:</strong> 4 kata kadar (dahil) en az 3.00 m; 4 kattan sonraki her kat için 0.50 m artırılır.</li>
+            <li><strong>Bina Derinliği Formülü:</strong> Parsel Derinliği - (Ön Bahçe + Arka Bahçe). Arka bahçe mesafesi H/2'den az olamaz.</li>
+            <li><strong>Kapalı Çıkmalar:</strong> Yol cephelerinde parsel sınırına 5.00 m'den fazla yaklaşamaz; konsol genişliği en fazla 1.50 m'dir.</li>
+            <li><strong>Asansör Zorunluluğu:</strong> 3 ve daha fazla katlı binalarda zorunludur.</li>
+          </ul>
+        </div>
+        <div>
+          <label class="text-[10px] text-cad-muted block mb-1 uppercase font-semibold">Parsel Özel Plan Notları / Açıklamalar</label>
+          <textarea id="txtPlanNotlari" rows="4" placeholder="Belediyeden alınan imar çapı plan notlarını buraya yapıştırabilirsiniz..." class="w-full bg-cad-card border border-cad-border rounded p-2 text-white font-mono text-xs outline-none focus:border-cad-accent"></textarea>
+        </div>
+      </div>
+      <div class="p-3 border-t border-cad-border bg-slate-900/60 flex items-center justify-end">
+        <button id="btnCloseYonetmelik" class="h-8 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. İmar Çapı Modalı -->
+  <div id="modalImarDoc" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-bg">
+    <div class="bg-cad-panel border border-cad-border rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+      <div class="p-3 border-b border-cad-border flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center space-x-2"><i data-lucide="file-text" class="w-4 h-4 text-sky-400"></i><span class="font-bold text-sm text-white">İmar Durumu / Çap Belgesi Yükle</span></div>
+        <button id="btnCloseImarDocModal" class="text-cad-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="border-2 border-dashed border-cad-border hover:border-sky-400 rounded-xl p-6 text-center cursor-pointer transition bg-cad-card/30">
+          <input type="file" id="fileImarDoc" accept="application/pdf,image/*" class="hidden" />
+          <i data-lucide="upload-cloud" class="w-10 h-10 text-sky-400 mx-auto mb-2"></i>
+          <p class="font-semibold text-white text-xs">Resmi İmar Çapı Belgenizi Yükleyin</p>
+          <p class="text-[10px] text-cad-muted mt-1">PDF veya JPG/PNG formatında belge seçin</p>
+        </div>
+      </div>
+      <div class="p-3 border-t border-cad-border bg-slate-900/60 flex items-center justify-end">
+        <button id="btnSaveImarDoc" class="h-8 px-4 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded">Tamam</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Drone Modalı -->
+  <div id="modalDrone" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-bg">
+    <div class="bg-cad-panel border border-cad-border rounded-xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="p-3 border-b border-cad-border flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center space-x-2"><i data-lucide="camera" class="w-4 h-4 text-amber-400"></i><span class="font-bold text-sm text-white">Drone / Hava Fotoğrafı Bindirme</span></div>
+        <button id="btnCloseDroneModal" class="text-cad-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-4 space-y-4 overflow-y-auto">
+        <div class="border-2 border-dashed border-cad-border rounded-xl p-5 text-center cursor-pointer bg-cad-card/30 hover:border-amber-400">
+          <input type="file" id="fileDroneImage" accept="image/*" class="hidden" />
+          <i data-lucide="image-plus" class="w-8 h-8 text-amber-400 mx-auto mb-1"></i>
+          <p class="font-semibold text-white text-xs">Arsa Drone Fotoğrafı Seçin</p>
+          <p class="text-[10px] text-cad-muted">JPG veya PNG yüksek çözünürlüklü hava fotoğrafı</p>
+        </div>
+        <div>
+          <div class="flex justify-between text-[10px] text-cad-muted mb-1 font-mono"><span>Görsel Opaklığı</span><span id="txtDroneOpacity">65%</span></div>
+          <input id="sliderDroneOpacity" type="range" min="0" max="100" value="65" class="w-full accent-amber-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer" />
+        </div>
+      </div>
+      <div class="p-3 border-t border-cad-border bg-slate-900/60 flex items-center justify-end space-x-2">
+        <button id="btnApplyDroneOverlay" class="h-8 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded">Uygula ve Göster</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT HESAPLAMA MOTORU -->
   <script>
     lucide.createIcons();
 
-    // -------------------------------------------------------------
-    // 81 İL / İLÇE / MAHALLE VERİ KATALOĞU
-    // -------------------------------------------------------------
-    const TURKIYE_ILLER = [
-      { plaka: "01", ad: "Adana", merkez: [35.3213, 37.0000] },
-      { plaka: "02", ad: "Adıyaman", merkez: [38.2763, 37.7648] },
-      { plaka: "03", ad: "Afyonkarahisar", merkez: [30.5433, 38.7569] },
-      { plaka: "04", ad: "Ağrı", merkez: [43.0519, 39.7191] },
-      { plaka: "05", ad: "Amasya", merkez: [35.8353, 40.6539] },
-      { plaka: "06", ad: "Ankara", merkez: [32.8597, 39.9334] },
-      { plaka: "07", ad: "Antalya", merkez: [30.7133, 36.8969] },
-      { plaka: "08", ad: "Artvin", merkez: [41.8183, 41.1828] },
-      { plaka: "09", ad: "Aydın", merkez: [27.8456, 37.8560] },
-      { plaka: "10", ad: "Balıkesir", merkez: [27.8826, 39.6484] },
-      { plaka: "11", ad: "Bilecik", merkez: [29.9793, 40.1426] },
-      { plaka: "12", ad: "Bingöl", merkez: [40.4939, 38.8847] },
-      { plaka: "13", ad: "Bitlis", merkez: [42.1095, 38.4006] },
-      { plaka: "14", ad: "Bolu", merkez: [31.6061, 40.7358] },
-      { plaka: "15", ad: "Burdur", merkez: [30.2889, 37.7203] },
-      { plaka: "16", ad: "Bursa", merkez: [28.9816, 40.2103] },
-      { plaka: "17", ad: "Çanakkale", merkez: [26.4086, 40.1553] },
-      { plaka: "18", ad: "Çankırı", merkez: [33.6134, 40.6013] },
-      { plaka: "19", ad: "Çorum", merkez: [34.9537, 40.5506] },
-      { plaka: "20", ad: "Denizli", merkez: [29.0864, 37.7765] },
-      { plaka: "21", ad: "Diyarbakır", merkez: [40.2306, 37.9144] },
-      { plaka: "22", ad: "Edirne", merkez: [26.5557, 41.6772] },
-      { plaka: "23", ad: "Elazığ", merkez: [39.2232, 38.6810] },
-      { plaka: "24", ad: "Erzincan", merkez: [39.4926, 39.7500] },
-      { plaka: "25", ad: "Erzurum", merkez: [41.2768, 39.9043] },
-      { plaka: "26", ad: "Eskişehir", merkez: [30.5256, 39.7767] },
-      { plaka: "27", ad: "Gaziantep", merkez: [37.3822, 37.0662] },
-      { plaka: "28", ad: "Giresun", merkez: [38.3895, 40.9128] },
-      { plaka: "29", ad: "Gümüşhane", merkez: [39.4792, 40.4600] },
-      { plaka: "30", ad: "Hakkari", merkez: [43.7408, 37.5833] },
-      { plaka: "31", ad: "Hatay", merkez: [36.1667, 36.2000] },
-      { plaka: "32", ad: "Isparta", merkez: [30.5537, 37.7648] },
-      { plaka: "33", ad: "Mersin", merkez: [34.6415, 36.8121] },
-      { plaka: "34", ad: "İstanbul", merkez: [28.9784, 41.0082] },
-      { plaka: "35", ad: "İzmir", merkez: [27.1428, 38.4237] },
-      { plaka: "36", ad: "Kars", merkez: [43.0975, 40.6013] },
-      { plaka: "37", ad: "Kastamonu", merkez: [33.7753, 41.3887] },
-      { plaka: "38", ad: "Kayseri", merkez: [35.4853, 38.7205] },
-      { plaka: "39", ad: "Kırklareli", merkez: [27.2244, 41.7333] },
-      { plaka: "40", ad: "Kırşehir", merkez: [34.1709, 39.1425] },
-      { plaka: "41", ad: "Kocaeli", merkez: [29.9169, 40.8533] },
-      { plaka: "42", ad: "Konya", merkez: [32.4844, 37.8667] },
-      { plaka: "43", ad: "Kütahya", merkez: [29.9833, 39.4167] },
-      { plaka: "44", ad: "Malatya", merkez: [38.3167, 38.3552] },
-      { plaka: "45", ad: "Manisa", merkez: [27.4296, 38.6191] },
-      { plaka: "46", ad: "Kahramanmaraş", merkez: [36.9371, 37.5858] },
-      { plaka: "47", ad: "Mardin", merkez: [40.7339, 37.3212] },
-      { plaka: "48", ad: "Muğla", merkez: [28.3636, 37.2153] },
-      { plaka: "49", ad: "Muş", merkez: [41.4911, 38.7432] },
-      { plaka: "50", ad: "Nevşehir", merkez: [34.7144, 38.6244] },
-      { plaka: "51", ad: "Niğde", merkez: [34.6794, 37.9667] },
-      { plaka: "52", ad: "Ordu", merkez: [37.8797, 40.9839] },
-      { plaka: "53", ad: "Rize", merkez: [40.5217, 41.0201] },
-      { plaka: "54", ad: "Sakarya", merkez: [30.4060, 40.7569] },
-      { plaka: "55", ad: "Samsun", merkez: [36.3360, 41.2928] },
-      { plaka: "56", ad: "Siirt", merkez: [41.9420, 37.9333] },
-      { plaka: "57", ad: "Sinop", merkez: [35.1517, 42.0231] },
-      { plaka: "58", ad: "Sivas", merkez: [37.0145, 39.7477] },
-      { plaka: "59", ad: "Tekirdağ", merkez: [27.5110, 40.9833] },
-      { plaka: "60", ad: "Tokat", merkez: [36.5544, 40.3167] },
-      { plaka: "61", ad: "Trabzon", merkez: [39.7168, 41.0015] },
-      { plaka: "62", ad: "Tunceli", merkez: [39.5401, 39.1079] },
-      { plaka: "63", ad: "Şanlıurfa", merkez: [38.7955, 37.1591] },
-      { plaka: "64", ad: "Uşak", merkez: [29.4058, 38.6823] },
-      { plaka: "65", ad: "Van", merkez: [43.3748, 38.4891] },
-      { plaka: "66", ad: "Yozgat", merkez: [34.8044, 39.8181] },
-      { plaka: "67", ad: "Zonguldak", merkez: [31.7987, 41.4564] },
-      { plaka: "68", ad: "Aksaray", merkez: [34.0254, 38.3687] },
-      { plaka: "69", ad: "Bayburt", merkez: [40.2280, 40.2552] },
-      { plaka: "70", ad: "Karaman", merkez: [33.2150, 37.1759] },
-      { plaka: "71", ad: "Kırıkkale", merkez: [33.5062, 39.8468] },
-      { plaka: "72", ad: "Batman", merkez: [41.1322, 37.8812] },
-      { plaka: "73", ad: "Şırnak", merkez: [42.4594, 37.5164] },
-      { plaka: "74", ad: "Bartın", merkez: [32.3375, 41.6344] },
-      { plaka: "75", ad: "Ardahan", merkez: [42.7022, 41.1105] },
-      { plaka: "76", ad: "Iğdır", merkez: [44.0450, 39.9196] },
-      { plaka: "77", ad: "Yalova", merkez: [29.2769, 40.6500] },
-      { plaka: "78", ad: "Karabük", merkez: [32.6277, 41.2061] },
-      { plaka: "79", ad: "Kilis", merkez: [37.1150, 36.7184] },
-      { plaka: "80", ad: "Osmaniye", merkez: [36.2467, 37.0742] },
-      { plaka: "81", ad: "Düzce", merkez: [31.1625, 40.8438] }
+    const AppState = {
+      il: '', ilce: '', mahalle: '', ada: '', parsel: '', dom: 30,
+      wgs84Coords: [], itrfCoords: [], localCoords: [], tapuAlani: 0, calculatedArea: 0,
+      edgeSetbacks: [], setbackPolygon: [], setbackArea: 0,
+      taks: 0.40, kaks: 1.20, katSayisi: 2, maxGroundArea: 0, maxTotalArea: 0,
+      typology: 'single', formTemplate: 'rect', placementCriterion: 'road',
+      minEdgeLength: 400, maxEdgeLength: 3200,
+      rulesActive: false,
+      rules: { minBlockDistance: 6.0, minSideYard: 3.0, minEdgeLength: 4.0, maxFacadeWidth: 35.0, minAspectRatio: 0.25, minStairArea: 8.0, minLivingRoom: 20.0, minBedroom: 10.0, minCorridorWidth: 1.20 },
+      variations: [], activeVariationIndex: 0, activeBuildingMass: null,
+      viewMode: '2D', isFloorPlanMode: false, floorPlanRotation: 0, activeFloor: 0,
+      zoom: 1.0, panX: 0, panY: 0, isPanning: false, isDraggingMass: false, dragStartX: 0, dragStartY: 0,
+      lastMouseX: 0, lastMouseY: 0, hoveredEdgeIndex: -1, selectedEdgeIndex: -1,
+      droneActive: false
+    };
+
+    const PROVINCES = [
+      "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Ankara", "Antalya", "Ardahan", "Artvin", "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik", "Bingöl", "Bitlis", "Bolu", "Burdur", "Bursa", "Çanakkale", "Çankırı", "Çorum", "Denizli", "Diyarbakır", "Düzce", "Edirne", "Elazığ", "Erzincan", "Erzurum", "Eskişehir", "Gaziantep", "Giresun", "Gümüşhane", "Hakkari", "Hatay", "Iğdır", "Isparta", "İstanbul", "İzmir", "Kahramanmaraş", "Karabük", "Karaman", "Kars", "Kastamonu", "Kayseri", "Kırıkkale", "Kırklareli", "Kırşehir", "Kilis", "Kocaeli", "Konya", "Kütahya", "Malatya", "Manisa", "Mardin", "Mersin", "Muğla", "Muş", "Nevşehir", "Niğde", "Ordu", "Osmaniye", "Rize", "Sakarya", "Samsun", "Siirt", "Sinop", "Sivas", "Şanlıurfa", "Şırnak", "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak"
     ];
 
-    const ILCE_KATALOG = {
-      "16": ["Nilüfer", "Osmangazi", "Yıldırım", "Mudanya", "Gemlik", "İnegöl"],
-      "34": ["Kadıköy", "Beşiktaş", "Üsküdar", "Sarıyer", "Beylikdüzü", "Bakırköy"],
-      "06": ["Çankaya", "Yenimahalle", "Keçiören", "Etimesgut", "Gölbaşı"],
-      "35": ["Konak", "Karşıyaka", "Bornova", "Çeşme", "Urla"],
-      "10": ["Susurluk", "Altıeylül", "Karesi", "Bandırma", "Edremit"],
-      "77": ["Merkez", "Çınarcık", "Armutlu", "Termal", "Çiftlikköy"]
-    };
-
-    const MAHALLE_KATALOG = {
-      "Nilüfer": ["İhsaniye", "Odunluk", "Özlüce", "Balat", "Görükle", "Çamlıca"],
-      "Mudanya": ["Kumyaka", "Güzelyalı", "Bademli", "Hançerli"],
-      "Susurluk": ["Balıklıdere", "Göbel", "Karapürçek", "Demirkapı"],
-      "Çınarcık": ["Esenköy", "Koru", "Kocadere", "Teşvikiye"]
-    };
-
-    // İlleri Doldur
-    const selIl = document.getElementById('sel-il');
-    const selIlce = document.getElementById('sel-ilce');
-    const selMahalle = document.getElementById('sel-mahalle');
-
-    TURKIYE_ILLER.forEach(il => {
+    const selIl = document.getElementById('selIl');
+    PROVINCES.forEach(il => {
       const opt = document.createElement('option');
-      opt.value = il.plaka;
-      opt.textContent = `${il.plaka} - ${il.ad}`;
-      selIl.appendChild(opt);
+      opt.value = il; opt.textContent = il; selIl.appendChild(opt);
     });
 
-    selIl.addEventListener('change', (e) => {
-      const plaka = e.target.value;
-      selIlce.innerHTML = '<option value="">İlçe Seçiniz</option>';
-      selMahalle.innerHTML = '<option value="">Mahalle Seçiniz</option>';
-      selMahalle.disabled = true;
-
-      if (!plaka) {
-        selIlce.disabled = true;
-        return;
-      }
-
-      selIlce.disabled = false;
-      const ilceler = ILCE_KATALOG[plaka] || ["Merkez", "Merkez 2", "Kuzey", "Güney"];
-      ilceler.forEach(ilce => {
-        const opt = document.createElement('option');
-        opt.value = ilce;
-        opt.textContent = ilce;
-        selIlce.appendChild(opt);
-      });
-
-      const seciliIl = TURKIYE_ILLER.find(i => i.plaka === plaka);
-      if (seciliIl) {
-        map.flyTo({ center: seciliIl.merkez, zoom: 12, speed: 1.2 });
-      }
-    });
-
-    selIlce.addEventListener('change', (e) => {
-      const ilce = e.target.value;
-      selMahalle.innerHTML = '<option value="">Mahalle Seçiniz</option>';
-      if (!ilce) {
-        selMahalle.disabled = true;
-        return;
-      }
-      selMahalle.disabled = false;
-      const mahalleler = MAHALLE_KATALOG[ilce] || ["Cumhuriyet", "Atatürk", "Yeni Mahalle", "Zafer"];
-      mahalleler.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = m;
-        selMahalle.appendChild(opt);
-      });
-    });
-
-    // -------------------------------------------------------------
-    // UYGULAMA DURUMU (CAD STATE)
-    // -------------------------------------------------------------
-    const App = {
-      rulesActive: false,
-      is3D: false,
-      selectedForm: 'RECT',
-      parcelWGS: [
-        [28.9812, 40.2105],
-        [28.9818, 40.2108],
-        [28.9822, 40.2101],
-        [28.9815, 40.2097]
-      ],
-      parcelLocal: [],
-      setbackPoly: [],
-      buildingPoly: [],
-      buildingPos: { x: 0, y: 0, angle: 0 },
-      isDragging: false,
-      dragStart: { x: 0, y: 0 }
+    const SAMPLES = {
+      bursa: { il: "Bursa", ilce: "Nilüfer", mahalle: "Minareli Çavuş", ada: 1483, parsel: 8, tapuAlani: 845.50, taks: 0.40, kaks: 1.20, kat: 2, dom: 30, wgs84: [[28.94120, 40.23150],[28.94165, 40.23145],[28.94185, 40.23115],[28.94135, 40.23105],[28.94105, 40.23125]], edgeTypes: ['yol','yan','arka','yan','yan'] },
+      istanbul: { il: "İstanbul", ilce: "Kadıköy", mahalle: "Suadiye", ada: 120, parsel: 15, tapuAlani: 1280.00, taks: 0.35, kaks: 2.10, kat: 6, dom: 30, wgs84: [[29.08200, 40.96300],[29.08250, 40.96290],[29.08240, 40.96240],[29.08180, 40.96250]], edgeTypes: ['yol','yan','arka','yan'] },
+      ankara: { il: "Ankara", ilce: "Çankaya", mahalle: "Beytepe", ada: 450, parsel: 4, tapuAlani: 1650.00, taks: 0.40, kaks: 1.60, kat: 4, dom: 33, wgs84: [[32.73100, 39.87100],[32.73165, 39.87095],[32.73155, 39.87040],[32.73080, 39.87050],[32.73070, 39.87080]], edgeTypes: ['yol','yol','yan','arka','yan'] },
+      izmir: { il: "İzmir", ilce: "Bornova", mahalle: "Kazımdirik", ada: 780, parsel: 2, tapuAlani: 2420.00, taks: 0.40, kaks: 1.60, kat: 4, dom: 27, wgs84: [[27.21500, 38.46200],[27.21580, 38.46190],[27.21570, 38.46110],[27.21470, 38.46125]], edgeTypes: ['yol','yan','arka','yan'] }
     };
 
-    // -------------------------------------------------------------
-    // HARİTA ALTLIĞI (MAPLIBRE GL JS)
-    // -------------------------------------------------------------
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: {
-        version: 8,
-        sources: {
-          'satellite': {
-            type: 'raster',
-            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-            tileSize: 256
-          },
-          'osm': {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256
-          }
-        },
-        layers: [
-          { id: 'sat-layer', type: 'raster', source: 'satellite' },
-          { id: 'osm-layer', type: 'raster', source: 'osm', layout: { visibility: 'none' } }
-        ]
-      },
-      center: [28.9816, 40.2103],
-      zoom: 18,
-      pitch: 0,
-      bearing: 0
-    });
+    function calculateDOM(lon) { return Math.round(lon / 3.0) * 3; }
+    function getITRFProj4Def(dom) { return `+proj=tmerc +lat_0=0 +lon_0=${dom} +k=1 +x_0=500000 +y_0=0 +ellps=GRS80 +units=m +no_defs`; }
 
-    let currentLayer = 'sat';
-    document.getElementById('btn-toggle-layer').addEventListener('click', () => {
-      currentLayer = currentLayer === 'sat' ? 'osm' : 'sat';
-      map.setLayoutProperty('sat-layer', 'visibility', currentLayer === 'sat' ? 'visible' : 'none');
-      map.setLayoutProperty('osm-layer', 'visibility', currentLayer === 'osm' ? 'visible' : 'none');
-    });
-
-    // -------------------------------------------------------------
-    // SAĞ ALT ZOOM VE ORTALAMA BUTONLARI (CAD & HARİTA SENKRON)
-    // -------------------------------------------------------------
-    document.getElementById('btn-zoom-in').addEventListener('click', () => {
-      map.zoomIn({ duration: 300 });
-    });
-
-    document.getElementById('btn-zoom-out').addEventListener('click', () => {
-      map.zoomOut({ duration: 300 });
-    });
-
-    document.getElementById('btn-zoom-fit').addEventListener('click', () => {
-      map.flyTo({ center: [28.9816, 40.2103], zoom: 18.5, pitch: 0, bearing: 0 });
-    });
-
-    document.getElementById('btn-sorgula').addEventListener('click', () => {
-      map.flyTo({ center: [28.9816, 40.2103], zoom: 19, speed: 1.2 });
-    });
-
-    // -------------------------------------------------------------
-    // 2D CAD CANVAS GEOMETRİSİ
-    // -------------------------------------------------------------
-    const canvas = document.getElementById('cad-canvas');
-    const ctx = canvas.getContext('2d');
-
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      render();
+    function calculateShoelaceArea(polygon) {
+      let area = 0; const n = polygon.length;
+      if (n < 3) return 0;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += polygon[i][0] * polygon[j][1] - polygon[j][0] * polygon[i][1];
+      }
+      return Math.abs(area) / 2.0;
     }
-    window.addEventListener('resize', resize);
-    map.on('move', render);
-    map.on('zoom', render);
-    map.on('rotate', render);
 
-    function initLocalGeometry() {
-      const projWGS = "EPSG:4326";
-      const projITRF = "+proj=utm +zone=35 +ellps=GRS80 +units=m +no_defs";
+    function processWGS84ToLocalCAD(wgs84Coords, targetTapuAlan = 0) {
+      if (!wgs84Coords || wgs84Coords.length < 3) return null;
+      const centerLon = wgs84Coords.reduce((sum, p) => sum + p[0], 0) / wgs84Coords.length;
+      const dom = calculateDOM(centerLon);
+      AppState.dom = dom;
+      proj4.defs(`ITRF96_TM3_${dom}`, getITRFProj4Def(dom));
 
-      let sumX = 0, sumY = 0;
-      const pts = App.parcelWGS.map(coord => {
-        const p = proj4(projWGS, projITRF, coord);
-        sumX += p[0]; sumY += p[1];
-        return p;
+      const itrfCoords = wgs84Coords.map(pt => {
+        const res = proj4("EPSG:4326", `ITRF96_TM3_${dom}`, [pt[0], pt[1]]);
+        return [res[0], res[1]];
       });
 
-      const originX = sumX / pts.length;
-      const originY = sumY / pts.length;
+      const refP = itrfCoords[0];
+      let localCoords = itrfCoords.map(pt => [pt[0] - refP[0], pt[1] - refP[1]]);
 
-      App.parcelLocal = pts.map(p => ({ x: p[0] - originX, y: p[1] - originY }));
-      calculateSetback();
-      createBuildingShape();
-    }
-
-    function calculateSetback() {
-      const scale = 1000;
-      const subj = [App.parcelLocal.map(p => ({ X: Math.round(p.x * scale), Y: Math.round(p.y * scale) }))];
-      const co = new ClipperLib.ClipperOffset();
-      co.AddPaths(subj, ClipperLib.JoinType.jtMiter, ClipperLib.EndType.etClosedPolygon);
-      
-      const solution = new ClipperLib.Paths();
-      co.Execute(solution, -3.5 * scale);
-
-      if (solution.length > 0) {
-        App.setbackPoly = solution[0].map(p => ({ x: p.X / scale, y: p.Y / scale }));
-      } else {
-        App.setbackPoly = [];
+      let a = 0;
+      for (let i = 0; i < localCoords.length; i++) {
+        const j = (i + 1) % localCoords.length;
+        a += (localCoords[j][0] - localCoords[i][0]) * (localCoords[j][1] + localCoords[i][1]);
       }
-    }
+      if (a > 0) { localCoords.reverse(); itrfCoords.reverse(); }
 
-    function createBuildingShape() {
-      const w = 12;
-      const d = 15;
-      
-      if (App.selectedForm === 'RECT') {
-        App.buildingPoly = [
-          { x: -w/2, y: -d/2 },
-          { x: w/2, y: -d/2 },
-          { x: w/2, y: d/2 },
-          { x: -w/2, y: d/2 }
-        ];
-      } else if (App.selectedForm === 'L') {
-        App.buildingPoly = [
-          { x: -w/2, y: -d/2 },
-          { x: w/2, y: -d/2 },
-          { x: w/2, y: 0 },
-          { x: 0, y: 0 },
-          { x: 0, y: d/2 },
-          { x: -w/2, y: d/2 }
-        ];
-      } else {
-        App.buildingPoly = [
-          { x: -w/2, y: -d/2 },
-          { x: w/2, y: -d/2 },
-          { x: w/2, y: d/2 },
-          { x: -w/2, y: d/2 }
-        ];
+      const curArea = calculateShoelaceArea(localCoords);
+      if (targetTapuAlan > 0 && curArea > 0) {
+        const k = Math.sqrt(targetTapuAlan / curArea);
+        localCoords = localCoords.map(pt => [pt[0] * k, pt[1] * k]);
       }
+
+      AppState.itrfCoords = itrfCoords;
+      AppState.localCoords = localCoords;
+      AppState.calculatedArea = calculateShoelaceArea(localCoords);
+      AppState.tapuAlani = targetTapuAlan > 0 ? targetTapuAlan : Math.round(AppState.calculatedArea * 100) / 100;
+      return localCoords;
     }
 
-    function meterToPixel(pt) {
-      const centerLngLat = [28.9816, 40.2103];
-      const originPix = map.project(centerLngLat);
-      const zoom = map.getZoom();
-      const scale = Math.pow(2, zoom) / 2500;
+    function initializeDefaultSetbacks() {
+      const n = AppState.localCoords.length;
+      AppState.edgeSetbacks = [];
+      for (let i = 0; i < n; i++) {
+        const type = (i === 0) ? 'yol' : (i === Math.floor(n / 2) ? 'arka' : 'yan');
+        AppState.edgeSetbacks.push({ type, distance: type === 'yol' ? 5.0 : 3.0 });
+      }
+      calculateSetbackPolygon();
+      renderEdgeSetbackList();
+    }
 
+    function calculateSetbackPolygon() {
+      const poly = AppState.localCoords; const n = poly.length;
+      if (n < 3) return;
+      const offsetLines = [];
+      for (let i = 0; i < n; i++) {
+        const p1 = poly[i]; const p2 = poly[(i + 1) % n];
+        const dx = p2[0] - p1[0]; const dy = p2[1] - p1[1];
+        const len = Math.hypot(dx, dy); if (len === 0) continue;
+        const nx = -dy / len; const ny = dx / len;
+        const dist = AppState.edgeSetbacks[i]?.distance || 3.0;
+        offsetLines.push({ p1: [p1[0] + nx * dist, p1[1] + ny * dist], p2: [p2[0] + nx * dist, p2[1] + ny * dist] });
+      }
+
+      const setbackVertices = [];
+      for (let i = 0; i < n; i++) {
+        const prev = (i - 1 + n) % n;
+        const inter = lineIntersection(offsetLines[prev].p1, offsetLines[prev].p2, offsetLines[i].p1, offsetLines[i].p2);
+        setbackVertices.push(inter || offsetLines[i].p1);
+      }
+
+      const area = calculateShoelaceArea(setbackVertices);
+      if (area < 10 || isNaN(area) || setbackVertices.length < 3) {
+        const c = getCentroid(poly);
+        AppState.setbackPolygon = poly.map(p => [c[0] + (p[0] - c[0]) * 0.55, c[1] + (p[1] - c[1]) * 0.55]);
+      } else {
+        AppState.setbackPolygon = setbackVertices;
+      }
+      AppState.setbackArea = calculateShoelaceArea(AppState.setbackPolygon);
+      updateMetricsDisplay();
+    }
+
+    function lineIntersection(p1, p2, p3, p4) {
+      const d = (p1[0] - p2[0]) * (p3[1] - p4[1]) - (p1[1] - p2[1]) * (p3[0] - p4[0]);
+      if (Math.abs(d) < 1e-9) return null;
+      const t = ((p1[0] - p3[0]) * (p3[1] - p4[1]) - (p1[1] - p3[1]) * (p3[0] - p4[0])) / d;
+      return [p1[0] + t * (p2[0] - p1[0]), p1[1] + t * (p2[1] - p1[1])];
+    }
+
+    function getCentroid(poly) {
+      let cx = 0, cy = 0; poly.forEach(p => { cx += p[0]; cy += p[1]; });
+      return [cx / poly.length, cy / poly.length];
+    }
+    function getBoundingBox(poly) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      poly.forEach(p => { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1]; });
+      return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+    }
+    function isPointInPolygon(pt, poly) {
+      let inside = false; const x = pt[0], y = pt[1];
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i][0], yi = poly[i][1]; const xj = poly[j][0], yj = poly[j][1];
+        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+      }
+      return inside;
+    }
+
+    function generate10Variations() {
+      if (!AppState.setbackPolygon || AppState.setbackPolygon.length < 3) return;
+      const center = getCentroid(AppState.setbackPolygon);
+      const maxGround = AppState.tapuAlani * AppState.taks;
+
+      let roadAngle = 0;
+      const roadIdx = AppState.edgeSetbacks.findIndex(e => e.type === 'yol');
+      if (roadIdx !== -1) {
+        const p1 = AppState.localCoords[roadIdx];
+        const p2 = AppState.localCoords[(roadIdx + 1) % AppState.localCoords.length];
+        roadAngle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
+      }
+
+      const list = [
+        createVariationCandidate("V-01: Yola Paralel Optimal Blok", "rect", 0.95 * maxGround, 1.6, roadAngle, center, "Yola paralel rasyonel taşıyıcı"),
+        createVariationCandidate("V-02: L-Form Güneş Avlulu Kütle", "L", 0.90 * maxGround, 1.4, roadAngle, center, "Geniş iç bahçe yaratan avlu"),
+        createVariationCandidate("V-03: Kompakt Kare Kütle", "rect", 0.85 * maxGround, 1.1, roadAngle, center, "Maksimum yan bahçe mesafesi"),
+        createVariationCandidate("V-04: U-Form İç Avlulu Rezidans", "U", 0.88 * maxGround, 1.3, roadAngle, center, "Üç yönden korunaklı yeşil teras"),
+        createVariationCandidate("V-05: T-Form Fonksiyonel Kanat", "T", 0.82 * maxGround, 1.5, roadAngle, center, "Yaşam ve gece alanları ayrımı"),
+        createVariationCandidate("V-06: Lineer İnce Derin Blok", "rect", 0.80 * maxGround, 2.5, roadAngle + Math.PI / 2, center, "Çift cepheli doğal ışık"),
+        createVariationCandidate("V-07: Kademeli Z-Form Kütle", "Z", 0.86 * maxGround, 1.6, roadAngle, center, "Ön giriş ve arka veranda aksı"),
+        createVariationCandidate("V-08: İkiz / Parçalı İki Kütle", "twin", 0.84 * maxGround, 1.8, roadAngle, center, "Atrium ile bağlanan 2 hacim"),
+        createVariationCandidate("V-09: Çapraz +-Form Kanatlı Kütle", "plus", 0.78 * maxGround, 1.2, roadAngle, center, "4 cepheden panoramik ışık"),
+        createVariationCandidate("V-10: Maksimum TAKS Zarfı", "rect", maxGround, 1.5, roadAngle, center, "Azami izinli taban oturumu")
+      ];
+
+      AppState.variations = list;
+      renderVariationCards();
+      selectVariation(0);
+    }
+
+    function createVariationCandidate(name, form, targetArea, aspectRatio, angle, center, desc) {
+      const area = Math.min(targetArea, AppState.tapuAlani * AppState.taks);
+      const w = Math.sqrt(area * aspectRatio);
+      const h = area / w;
+      let raw = [];
+      const minArm = AppState.rulesActive ? AppState.rules.minEdgeLength : 4.0;
+
+      if (form === 'rect') raw = [[-w/2, -h/2], [w/2, -h/2], [w/2, h/2], [-w/2, h/2]];
+      else if (form === 'L') {
+        const wingW = Math.max(w * 0.45, minArm); const wingH = Math.max(h * 0.45, minArm);
+        raw = [[-w/2, -h/2], [w/2, -h/2], [w/2, -h/2 + wingH], [-w/2 + wingW, -h/2 + wingH], [-w/2 + wingW, h/2], [-w/2, h/2]];
+      } else if (form === 'U') {
+        const sW = Math.max(w * 0.30, 3.5); const bH = Math.max(h * 0.40, minArm);
+        raw = [[-w/2, -h/2], [w/2, -h/2], [w/2, h/2], [w/2 - sW, h/2], [w/2 - sW, -h/2 + bH], [-w/2 + sW, -h/2 + bH], [-w/2 + sW, h/2], [-w/2, h/2]];
+      } else if (form === 'T') {
+        const hH = Math.max(h * 0.4, minArm); const sW = Math.max(w * 0.4, minArm);
+        raw = [[-w/2, -h/2], [w/2, -h/2], [w/2, -h/2 + hH], [sW/2, -h/2 + hH], [sW/2, h/2], [-sW/2, h/2], [-sW/2, -h/2 + hH], [-w/2, -h/2 + hH]];
+      } else if (form === 'Z') {
+        const sx = w * 0.25; const hh = h * 0.5;
+        raw = [[-w/2, -hh], [w/2 - sx, -hh], [w/2 - sx, 0], [w/2, 0], [w/2, hh], [-w/2 + sx, hh], [-w/2 + sx, 0], [-w/2, 0]];
+      } else if (form === 'plus') {
+        const aW = w * 0.35; const aH = h * 0.35;
+        raw = [[-aW/2, -h/2], [aW/2, -h/2], [aW/2, -aH/2], [w/2, -aH/2], [w/2, aH/2], [aW/2, aH/2], [aW/2, h/2], [-aW/2, h/2], [-aW/2, aH/2], [-w/2, aH/2], [-w/2, -aH/2], [-aW/2, -aH/2]];
+      } else if (form === 'twin') {
+        const sW = (w - (AppState.rulesActive ? AppState.rules.minBlockDistance : 4.0)) / 2;
+        raw = [[-w/2, -h/2], [-w/2 + sW, -h/2], [-w/2 + sW, h/2], [-w/2, h/2]];
+      }
+
+      const cosA = Math.cos(angle); const sinA = Math.sin(angle);
+      let poly = raw.map(p => [center[0] + (p[0] * cosA - p[1] * sinA), center[1] + (p[0] * sinA + p[1] * cosA)]);
+      poly = fitInsideSetback(poly);
+
+      const actualArea = calculateShoelaceArea(poly);
       return {
-        x: originPix.x + pt.x * scale,
-        y: originPix.y - pt.y * scale
+        name, form, polygon: poly,
+        groundArea: Math.round(actualArea * 10) / 10,
+        totalArea: Math.round(actualArea * AppState.katSayisi * 10) / 10,
+        taksRatio: Math.round((actualArea / AppState.tapuAlani) * 1000) / 10,
+        description: desc
       };
     }
 
-    function render() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function fitInsideSetback(poly) {
+      if (!AppState.setbackPolygon || AppState.setbackPolygon.length < 3) return poly;
+      const center = getCentroid(AppState.setbackPolygon);
+      let p = poly.map(pt => [...pt]);
+      let attempts = 0;
+      while (attempts < 25) {
+        let inside = true;
+        for (let i = 0; i < p.length; i++) {
+          if (!isPointInPolygon(p[i], AppState.setbackPolygon)) { inside = false; break; }
+        }
+        if (inside) break;
+        p = p.map(pt => [center[0] + (pt[0] - center[0]) * 0.94, center[1] + (pt[1] - center[1]) * 0.94]);
+        attempts++;
+      }
+      return p;
+    }
 
-      // Parsel Sınırı (Beyaz)
-      if (App.parcelLocal.length > 0) {
-        ctx.beginPath();
-        App.parcelLocal.forEach((p, i) => {
-          const pix = meterToPixel(p);
-          if (i === 0) ctx.moveTo(pix.x, pix.y);
-          else ctx.lineTo(pix.x, pix.y);
-        });
-        ctx.closePath();
-        ctx.strokeStyle = '#f8fafc';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
+    function selectVariation(index) {
+      if (!AppState.variations[index]) return;
+      AppState.activeVariationIndex = index;
+      AppState.activeBuildingMass = AppState.variations[index].polygon.map(p => [...p]);
+      document.getElementById('activeVariationTag').classList.remove('hidden');
+      document.getElementById('activeVariationTag').textContent = `Var #${index + 1} Aktif`;
+      updateMetricsDisplay();
+      highlightActiveVariationCard(index);
+      if (AppState.viewMode === '2D') render2DCanvas(); else render3DScene();
+    }
+
+    function renderVariationCards() {
+      const container = document.getElementById('variationCardsContainer');
+      container.innerHTML = '';
+      if (AppState.variations.length === 0) { document.getElementById('variationEmptyState').classList.remove('hidden'); return; }
+
+      AppState.variations.forEach((v, idx) => {
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border cursor-pointer transition flex flex-col space-y-2 ${idx === AppState.activeVariationIndex ? 'bg-sky-950/60 border-sky-500 shadow-md shadow-sky-950' : 'bg-cad-card/60 border-cad-border hover:border-slate-500 hover:bg-cad-card'}`;
+        card.id = `varCard_${idx}`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-white">${v.name}</span>
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono ${v.taksRatio > (AppState.taks * 100) ? 'bg-red-950 text-red-400 border border-red-800' : 'bg-emerald-950 text-emerald-400 border border-emerald-800'}">%${v.taksRatio} TAKS</span>
+          </div>
+          <div class="flex items-center space-x-2.5">
+            <canvas id="thumbCanvas_${idx}" width="90" height="60" class="rounded bg-slate-950 border border-slate-800 shrink-0"></canvas>
+            <div class="flex-1 space-y-1 text-[10px] font-mono">
+              <div class="flex justify-between"><span class="text-cad-muted">Taban:</span><span class="font-bold text-sky-400">${v.groundArea} m²</span></div>
+              <div class="flex justify-between"><span class="text-cad-muted">Toplam:</span><span class="font-bold text-indigo-400">${v.totalArea} m²</span></div>
+              <div class="text-[9px] text-slate-400 truncate mt-1">${v.description}</div>
+            </div>
+          </div>
+        `;
+        card.onclick = () => selectVariation(idx);
+        container.appendChild(card);
+        setTimeout(() => renderThumbnail(idx, v.polygon), 10);
+      });
+    }
+
+    function highlightActiveVariationCard(activeIdx) {
+      AppState.variations.forEach((_, idx) => {
+        const card = document.getElementById(`varCard_${idx}`);
+        if (!card) return;
+        card.className = (idx === activeIdx) ? 'p-2.5 rounded-xl border cursor-pointer transition flex flex-col space-y-2 bg-sky-950/60 border-sky-500 shadow-md shadow-sky-950' : 'p-2.5 rounded-xl border cursor-pointer transition flex flex-col space-y-2 bg-cad-card/60 border-cad-border hover:border-slate-500 hover:bg-cad-card';
+      });
+    }
+
+    function renderThumbnail(idx, massPoly) {
+      const cvs = document.getElementById(`thumbCanvas_${idx}`); if (!cvs) return;
+      const ctx2 = cvs.getContext('2d'); const w = cvs.width, h = cvs.height;
+      ctx2.clearRect(0, 0, w, h);
+      const box = getBoundingBox(AppState.localCoords);
+      const scale = Math.min((w - 10) / box.width, (h - 10) / box.height) * 0.85;
+      const cx = (box.minX + box.maxX) / 2, cy = (box.minY + box.maxY) / 2;
+      const tx = x => w / 2 + (x - cx) * scale;
+      const ty = y => h / 2 - (y - cy) * scale;
+
+      ctx2.strokeStyle = '#475569'; ctx2.lineWidth = 1; ctx2.beginPath();
+      AppState.localCoords.forEach((p, i) => { if (i === 0) ctx2.moveTo(tx(p[0]), ty(p[1])); else ctx2.lineTo(tx(p[0]), ty(p[1])); });
+      ctx2.closePath(); ctx2.stroke();
+
+      if (AppState.setbackPolygon.length > 2) {
+        ctx2.strokeStyle = '#b45309'; ctx2.setLineDash([2, 2]); ctx2.beginPath();
+        AppState.setbackPolygon.forEach((p, i) => { if (i === 0) ctx2.moveTo(tx(p[0]), ty(p[1])); else ctx2.lineTo(tx(p[0]), ty(p[1])); });
+        ctx2.closePath(); ctx2.stroke(); ctx2.setLineDash([]);
       }
 
-      // Çekme Sınırı (Kırmızı Kesik)
-      if (App.setbackPoly.length > 0) {
-        ctx.beginPath();
-        ctx.setLineDash([6, 4]);
-        App.setbackPoly.forEach((p, i) => {
-          const pix = meterToPixel(p);
-          if (i === 0) ctx.moveTo(pix.x, pix.y);
-          else ctx.lineTo(pix.x, pix.y);
-        });
-        ctx.closePath();
-        ctx.strokeStyle = '#f43f5e';
-        ctx.lineWidth = 1.8;
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Kütle (Amber)
-      if (App.buildingPoly.length > 0) {
-        ctx.save();
-        const centerPix = meterToPixel(App.buildingPos);
-        ctx.translate(centerPix.x, centerPix.y);
-        ctx.rotate((App.buildingPos.angle * Math.PI) / 180);
-
-        ctx.beginPath();
-        const zoom = map.getZoom();
-        const scale = Math.pow(2, zoom) / 2500;
-
-        App.buildingPoly.forEach((p, i) => {
-          const px = p.x * scale;
-          const py = -p.y * scale;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        });
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(245, 158, 11, 0.45)';
-        ctx.fill();
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#f8fafc';
-        ctx.fill();
-
-        ctx.restore();
+      if (massPoly && massPoly.length > 2) {
+        ctx2.fillStyle = 'rgba(56, 189, 248, 0.4)'; ctx2.strokeStyle = '#38bdf8'; ctx2.lineWidth = 1.5; ctx2.beginPath();
+        massPoly.forEach((p, i) => { if (i === 0) ctx2.moveTo(tx(p[0]), ty(p[1])); else ctx2.lineTo(tx(p[0]), ty(p[1])); });
+        ctx2.closePath(); ctx2.fill(); ctx2.stroke();
       }
     }
 
-    // Kütle Taşıma
-    canvas.addEventListener('mousedown', (e) => {
-      const mousePix = { x: e.clientX, y: e.clientY };
-      const centerPix = meterToPixel(App.buildingPos);
-      const dist = Math.hypot(mousePix.x - centerPix.x, mousePix.y - centerPix.y);
+    // 2D CANVAS MOTORU
+    const canvas = document.getElementById('cadCanvas');
+    const ctx = canvas.getContext('2d');
 
-      if (dist < 30) {
-        App.isDragging = true;
-        App.dragStart = { x: e.clientX, y: e.clientY };
+    function resizeCanvas() {
+      const container = document.getElementById('viewportContainer');
+      canvas.width = container.clientWidth * window.devicePixelRatio;
+      canvas.height = container.clientHeight * window.devicePixelRatio;
+      canvas.style.width = `${container.clientWidth}px`;
+      canvas.style.height = `${container.clientHeight}px`;
+      render2DCanvas();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function worldToScreen(wx, wy) {
+      let x = wx, y = wy;
+      if (AppState.isFloorPlanMode) {
+        const cosR = Math.cos(AppState.floorPlanRotation); const sinR = Math.sin(AppState.floorPlanRotation);
+        const rx = x * cosR - y * sinR; const ry = x * sinR + y * cosR;
+        x = rx; y = ry;
       }
+      const dpr = window.devicePixelRatio;
+      return [(canvas.width / 2) + (x * AppState.zoom + AppState.panX) * dpr, (canvas.height / 2) - (y * AppState.zoom + AppState.panY) * dpr];
+    }
+
+    function screenToWorld(sx, sy) {
+      const dpr = window.devicePixelRatio;
+      let x = ((sx - canvas.width / 2) / dpr - AppState.panX) / AppState.zoom;
+      let y = -((sy - canvas.height / 2) / dpr + AppState.panY) / AppState.zoom;
+      if (AppState.isFloorPlanMode) {
+        const cosR = Math.cos(-AppState.floorPlanRotation); const sinR = Math.sin(-AppState.floorPlanRotation);
+        const rx = x * cosR - y * sinR; const ry = x * sinR + y * cosR;
+        x = rx; y = ry;
+      }
+      return [x, y];
+    }
+
+    function zoomExtents() {
+      if (AppState.localCoords.length < 3) return;
+      const box = getBoundingBox(AppState.localCoords);
+      const dpr = window.devicePixelRatio;
+      const availW = (canvas.width / dpr) - 240;
+      const availH = (canvas.height / dpr) - 240;
+      AppState.zoom = Math.min(availW / box.width, availH / box.height);
+      const cx = (box.minX + box.maxX) / 2, cy = (box.minY + box.maxY) / 2;
+      AppState.panX = -cx * AppState.zoom;
+      AppState.panY = -cy * AppState.zoom;
+      updateScaleBar();
+      render2DCanvas();
+    }
+
+    function updateScaleBar() {
+      const line = document.getElementById('scaleBarLine');
+      line.style.width = `${Math.max(20, Math.min(180, 10 * AppState.zoom))}px`;
+      const ratio = Math.round(1000 / AppState.zoom);
+      document.getElementById('txtScaleRatio').textContent = `1:${ratio > 50 ? Math.round(ratio/50)*50 : 100}`;
+    }
+
+    function render2DCanvas() {
+      if (AppState.viewMode !== '2D') return;
+      const dpr = window.devicePixelRatio;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawCADGrid();
+
+      if (AppState.localCoords.length < 3) {
+        ctx.fillStyle = '#64748b'; ctx.font = `${13 * dpr}px 'JetBrains Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText("CAD Ekranı Temiz Sayfa | Lütfen yukarıdan Parsel Sorgulayınız veya Örnek Parsel Seçiniz", canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      drawParcelBoundary();
+      drawSetbackPolygon();
+      if (AppState.isFloorPlanMode) drawFloorPlanMode(); else drawBuildingMass();
+    }
+
+    function drawCADGrid() {
+      const dpr = window.devicePixelRatio;
+      const p0 = screenToWorld(0, canvas.height), p1 = screenToWorld(canvas.width, 0);
+      const minX = Math.floor(Math.min(p0[0], p1[0]) / 5) * 5, maxX = Math.ceil(Math.max(p0[0], p1[0]) / 5) * 5;
+      const minY = Math.floor(Math.min(p0[1], p1[1]) / 5) * 5, maxY = Math.ceil(Math.max(p0[1], p1[1]) / 5) * 5;
+
+      ctx.lineWidth = 0.5 * dpr; ctx.strokeStyle = 'rgba(51, 65, 85, 0.25)';
+      for (let x = minX; x <= maxX; x += 5) {
+        const s0 = worldToScreen(x, minY), s1 = worldToScreen(x, maxY);
+        ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 5) {
+        const s0 = worldToScreen(minX, y), s1 = worldToScreen(maxX, y);
+        ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke();
+      }
+      const orig = worldToScreen(0, 0);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)'; ctx.beginPath(); ctx.arc(orig[0], orig[1], 4 * dpr, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    function drawParcelBoundary() {
+      const dpr = window.devicePixelRatio; const poly = AppState.localCoords; const n = poly.length;
+      const ghost = AppState.isFloorPlanMode;
+      ctx.save();
+      ctx.lineWidth = (ghost ? 1.0 : 2.0) * dpr;
+      ctx.strokeStyle = ghost ? 'rgba(255, 255, 255, 0.15)' : '#ffffff';
+      if (ghost) ctx.setLineDash([4 * dpr, 4 * dpr]);
+
+      ctx.beginPath();
+      poly.forEach((pt, i) => { const s = worldToScreen(pt[0], pt[1]); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+      ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+
+      for (let i = 0; i < n; i++) {
+        const p1 = poly[i], p2 = poly[(i + 1) % n];
+        const s1 = worldToScreen(p1[0], p1[1]), s2 = worldToScreen(p2[0], p2[1]);
+        if (!ghost) {
+          ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(s1[0], s1[1], 3.5 * dpr, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#94a3b8'; ctx.font = `${9 * dpr}px monospace`; ctx.fillText(`P${i + 1}`, s1[0] + 6 * dpr, s1[1] - 6 * dpr);
+        }
+        if (i === AppState.hoveredEdgeIndex && !ghost) {
+          ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4 * dpr; ctx.beginPath(); ctx.moveTo(s1[0], s1[1]); ctx.lineTo(s2[0], s2[1]); ctx.stroke();
+        }
+        const midX = (s1[0] + s2[0]) / 2, midY = (s1[1] + s2[1]) / 2;
+        const lenM = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+        const setback = AppState.edgeSetbacks[i];
+        if (!ghost) {
+          ctx.font = `${10 * dpr}px 'JetBrains Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const label = `${lenM.toFixed(2)}m (${setback?.type?.toUpperCase() || 'YAN'}: ${setback?.distance || 3}m)`;
+          const tw = ctx.measureText(label).width + 8 * dpr;
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; ctx.fillRect(midX - tw / 2, midY - 7 * dpr, tw, 14 * dpr);
+          ctx.fillStyle = setback?.type === 'yol' ? '#38bdf8' : (setback?.type === 'arka' ? '#f59e0b' : '#fb923c');
+          ctx.fillText(label, midX, midY);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawSetbackPolygon() {
+      const dpr = window.devicePixelRatio; const poly = AppState.setbackPolygon;
+      if (!poly || poly.length < 3) return;
+      const ghost = AppState.isFloorPlanMode;
+      ctx.save();
+      ctx.lineWidth = 1.5 * dpr; ctx.strokeStyle = ghost ? 'rgba(245, 158, 11, 0.2)' : '#f59e0b';
+      ctx.setLineDash([5 * dpr, 4 * dpr]); ctx.fillStyle = ghost ? 'rgba(245, 158, 11, 0.01)' : 'rgba(245, 158, 11, 0.04)';
+      ctx.beginPath();
+      poly.forEach((pt, i) => { const s = worldToScreen(pt[0], pt[1]); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+      ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+      if (!ghost) {
+        const c = getCentroid(poly); const sc = worldToScreen(c[0], c[1]);
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.7)'; ctx.font = `${10 * dpr}px 'JetBrains Mono', monospace`; ctx.textAlign = 'center';
+        ctx.fillText(`Yapı Yaklaşma Alanı: ${Math.round(AppState.setbackArea)} m²`, sc[0], sc[1] - 15 * dpr);
+      }
+      ctx.restore();
+    }
+
+    function drawBuildingMass() {
+      const dpr = window.devicePixelRatio; const mass = AppState.activeBuildingMass;
+      if (!mass || mass.length < 3) return;
+      ctx.save();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.35)'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.5 * dpr;
+      ctx.beginPath();
+      mass.forEach((pt, i) => { const s = worldToScreen(pt[0], pt[1]); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      ctx.font = `${10 * dpr}px 'JetBrains Mono', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let i = 0; i < mass.length; i++) {
+        const p1 = mass[i], p2 = mass[(i + 1) % mass.length];
+        const s1 = worldToScreen(p1[0], p1[1]), s2 = worldToScreen(p2[0], p2[1]);
+        const lenCm = Math.round(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) * 100);
+        const mx = (s1[0] + s2[0]) / 2, my = (s1[1] + s2[1]) / 2;
+        const tag = `${lenCm} cm 🔒`; const tw = ctx.measureText(tag).width + 8 * dpr;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctx.fillRect(mx - tw/2, my - 6 * dpr, tw, 12 * dpr);
+        ctx.fillStyle = '#38bdf8'; ctx.fillText(tag, mx, my);
+      }
+
+      const c = getCentroid(mass); const sc = worldToScreen(c[0], c[1]);
+      const currentGround = calculateShoelaceArea(mass);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; ctx.fillRect(sc[0] - 65 * dpr, sc[1] - 18 * dpr, 130 * dpr, 36 * dpr);
+      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1 * dpr; ctx.strokeRect(sc[0] - 65 * dpr, sc[1] - 18 * dpr, 130 * dpr, 36 * dpr);
+      ctx.fillStyle = '#ffffff'; ctx.font = `bold ${11 * dpr}px 'JetBrains Mono', monospace`; ctx.fillText(`KÜTLE TABANI`, sc[0], sc[1] - 6 * dpr);
+      ctx.fillStyle = '#22c55e'; ctx.fillText(`${Math.round(currentGround * 10) / 10} m² (${AppState.katSayisi} Kat)`, sc[0], sc[1] + 8 * dpr);
+      ctx.restore();
+    }
+
+    // İÇ PLANA GEÇ MODU
+    function enterFloorPlanMode() {
+      if (!AppState.activeBuildingMass || AppState.activeBuildingMass.length < 3) { alert("Lütfen önce bir arsa sorgulayınız ve kütle seçiniz."); return; }
+      AppState.isFloorPlanMode = true;
+      const mass = AppState.activeBuildingMass;
+      let maxLen = 0, bestAngle = 0;
+      for (let i = 0; i < mass.length; i++) {
+        const p1 = mass[i], p2 = mass[(i + 1) % mass.length];
+        const len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+        if (len > maxLen) { maxLen = len; bestAngle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]); }
+      }
+      AppState.floorPlanRotation = -bestAngle;
+      document.getElementById('floorPlanControlBar').classList.remove('hidden');
+      document.getElementById('statusText').textContent = "Kat Planı Modu Aktif | Dış Duvar: 20cm, İç Duvar: 10cm";
+      zoomExtents(); render2DCanvas();
+    }
+
+    function exitFloorPlanMode() {
+      AppState.isFloorPlanMode = false; AppState.floorPlanRotation = 0;
+      document.getElementById('floorPlanControlBar').classList.add('hidden');
+      document.getElementById('statusText').textContent = "2D CAD Vaziyet Planı Modu";
+      zoomExtents(); render2DCanvas();
+    }
+    function rotateFloorPlan(deg) { AppState.floorPlanRotation += (deg * Math.PI / 180); render2DCanvas(); }
+
+    function drawFloorPlanMode() {
+      const dpr = window.devicePixelRatio; const mass = AppState.activeBuildingMass;
+      if (!mass || mass.length < 3) return;
+      const box = getBoundingBox(mass); const c = getCentroid(mass);
+
+      ctx.save();
+      // 1. Dış Duvar Çift Çizgi (20cm)
+      ctx.lineWidth = 2.5 * dpr; ctx.strokeStyle = '#38bdf8'; ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      mass.forEach((pt, i) => { const s = worldToScreen(pt[0], pt[1]); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      const innerMass = mass.map(pt => [c[0] + (pt[0] - c[0]) * 0.94, c[1] + (pt[1] - c[1]) * 0.94]);
+      ctx.lineWidth = 1 * dpr; ctx.strokeStyle = '#64748b'; ctx.beginPath();
+      innerMass.forEach((pt, i) => { const s = worldToScreen(pt[0], pt[1]); if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); });
+      ctx.closePath(); ctx.stroke();
+
+      // 2. Merdiven Kovası Çekirdeği (Sabit Kilitli, Min 8m²)
+      const stairW = 2.8, stairH = 3.0;
+      const s0 = worldToScreen(c[0] - stairW/2, c[1] - stairH/2), s1 = worldToScreen(c[0] + stairW/2, c[1] - stairH/2);
+      const s2 = worldToScreen(c[0] + stairW/2, c[1] + stairH/2), s3 = worldToScreen(c[0] - stairW/2, c[1] + stairH/2);
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.15)'; ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5 * dpr;
+      ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.lineTo(s2[0], s2[1]); ctx.lineTo(s3[0], s3[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      for (let i = 1; i < 14; i++) {
+        const yStep = (c[1] - stairH/2) + (stairH / 14) * i;
+        const st0 = worldToScreen(c[0] - stairW/2, yStep), st1 = worldToScreen(c[0] + stairW/2, yStep);
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)'; ctx.beginPath(); ctx.moveTo(st0[0], st0[1]); ctx.lineTo(st1[0], st1[1]); ctx.stroke();
+      }
+      const smid = worldToScreen(c[0], c[1]);
+      ctx.fillStyle = '#f59e0b'; ctx.font = `bold ${9 * dpr}px 'JetBrains Mono', monospace`; ctx.textAlign = 'center';
+      ctx.fillText(`MERDİVEN KOVASI`, smid[0], smid[1] - 4 * dpr); ctx.fillText(`(8.40 m² Sabit Çekirdek)`, smid[0], smid[1] + 8 * dpr);
+
+      // 3. İç Mekanlar
+      const r1 = worldToScreen(c[0] - box.width * 0.28, c[1] - box.height * 0.25);
+      const r2 = worldToScreen(c[0] + box.width * 0.28, c[1] - box.height * 0.25);
+      const r3 = worldToScreen(c[0] - box.width * 0.28, c[1] + box.height * 0.25);
+      const r4 = worldToScreen(c[0] + box.width * 0.28, c[1] + box.height * 0.25);
+
+      ctx.fillStyle = '#e2e8f0'; ctx.font = `${10 * dpr}px 'JetBrains Mono', monospace`;
+      ctx.fillText(`SALON & YAŞAM`, r1[0], r1[1] - 6 * dpr); ctx.fillStyle = '#38bdf8'; ctx.fillText(`~28.5 m²`, r1[0], r1[1] + 8 * dpr);
+      ctx.fillStyle = '#e2e8f0'; ctx.fillText(`MUTFAK`, r2[0], r2[1] - 6 * dpr); ctx.fillStyle = '#38bdf8'; ctx.fillText(`~14.2 m²`, r2[0], r2[1] + 8 * dpr);
+      ctx.fillStyle = '#e2e8f0'; ctx.fillText(`EBEVEYN ODASI`, r3[0], r3[1] - 6 * dpr); ctx.fillStyle = '#38bdf8'; ctx.fillText(`~16.0 m²`, r3[0], r3[1] + 8 * dpr);
+      ctx.fillStyle = '#e2e8f0'; ctx.fillText(`BANYO / ISLAK`, r4[0], r4[1] - 6 * dpr); ctx.fillStyle = '#38bdf8'; ctx.fillText(`~6.5 m²`, r4[0], r4[1] + 8 * dpr);
+      ctx.restore();
+    }
+
+    // 3D VIEWPORT WITH THREE.JS
+    let threeScene, threeCamera, threeRenderer, threeControls, buildingMeshGroup;
+    function initThreeJS() {
+      const container = document.getElementById('threeContainer');
+      threeScene = new THREE.Scene(); threeScene.background = new THREE.Color(0x080c14);
+      threeScene.fog = new THREE.FogExp2(0x080c14, 0.008);
+      threeCamera = new THREE.PerspectiveCamera(45, (container.clientWidth||800) / (container.clientHeight||600), 0.1, 1000);
+      threeCamera.position.set(40, 50, 60);
+
+      threeRenderer = new THREE.WebGLRenderer({ antialias: true });
+      threeRenderer.setSize(container.clientWidth||800, container.clientHeight||600);
+      threeRenderer.setPixelRatio(window.devicePixelRatio);
+      threeRenderer.shadowMap.enabled = true;
+      container.appendChild(threeRenderer.domElement);
+
+      threeControls = new THREE.OrbitControls(threeCamera, threeRenderer.domElement);
+      threeControls.enableDamping = true; threeControls.dampingFactor = 0.05;
+      threeControls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+      threeScene.add(new THREE.AmbientLight(0xffffff, 0.45));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.85); dirLight.position.set(50, 80, 40); dirLight.castShadow = true;
+      threeScene.add(dirLight);
+
+      const gridHelper = new THREE.GridHelper(160, 32, 0x38bdf8, 0x1e293b);
+      gridHelper.position.y = -0.01; threeScene.add(gridHelper);
+
+      buildingMeshGroup = new THREE.Group(); threeScene.add(buildingMeshGroup);
+
+      function animate() { requestAnimationFrame(animate); threeControls.update(); threeRenderer.render(threeScene, threeCamera); }
+      animate();
+
+      window.addEventListener('resize', () => {
+        if (container.clientWidth && container.clientHeight && threeCamera && threeRenderer) {
+          threeCamera.aspect = container.clientWidth / container.clientHeight;
+          threeCamera.updateProjectionMatrix();
+          threeRenderer.setSize(container.clientWidth, container.clientHeight);
+        }
+      });
+    }
+
+    function render3DScene() {
+      if (!buildingMeshGroup) return;
+      while (buildingMeshGroup.children.length > 0) buildingMeshGroup.remove(buildingMeshGroup.children[0]);
+      if (AppState.localCoords.length < 3) return;
+
+      const pPts = AppState.localCoords.map(p => new THREE.Vector3(p[0], 0.05, -p[1])); pPts.push(pPts[0]);
+      buildingMeshGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pPts), new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 })));
+
+      if (AppState.setbackPolygon.length > 2) {
+        const sPts = AppState.setbackPolygon.map(p => new THREE.Vector3(p[0], 0.08, -p[1])); sPts.push(sPts[0]);
+        const sLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(sPts), new THREE.LineDashedMaterial({ color: 0xf59e0b, dashSize: 2, gapSize: 1 }));
+        sLine.computeLineDistances(); buildingMeshGroup.add(sLine);
+      }
+
+      const mass = AppState.activeBuildingMass;
+      if (mass && mass.length > 2) {
+        const shape = new THREE.Shape();
+        mass.forEach((pt, i) => { if (i === 0) shape.moveTo(pt[0], -pt[1]); else shape.lineTo(pt[0], -pt[1]); });
+        shape.closePath();
+
+        for (let f = 0; f < AppState.katSayisi; f++) {
+          const geom = new THREE.ExtrudeGeometry(shape, { depth: 2.85, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 });
+          geom.rotateX(Math.PI / 2);
+          const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: f === 0 ? 0x1e293b : 0x0f172a, roughness: 0.4, metalness: 0.2 }));
+          mesh.position.y = (f * 3.0) + 2.85; mesh.castShadow = true; mesh.receiveShadow = true;
+          buildingMeshGroup.add(mesh);
+
+          const slabGeom = new THREE.ExtrudeGeometry(shape, { depth: 0.15, bevelEnabled: false });
+          slabGeom.rotateX(Math.PI / 2);
+          const slabMesh = new THREE.Mesh(slabGeom, new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.2 }));
+          slabMesh.position.y = f * 3.0; buildingMeshGroup.add(slabMesh);
+        }
+
+        const roofGeom = new THREE.ExtrudeGeometry(shape, { depth: 0.4, bevelEnabled: false });
+        roofGeom.rotateX(Math.PI / 2);
+        const roofMesh = new THREE.Mesh(roofGeom, new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 }));
+        roofMesh.position.y = (AppState.katSayisi * 3.0) + 0.4; buildingMeshGroup.add(roofMesh);
+
+        const c = getCentroid(mass);
+        threeControls.target.set(c[0], (AppState.katSayisi * 3.0) / 2, -c[1]);
+        threeCamera.position.set(c[0] + 35, (AppState.katSayisi * 3.0) + 30, -c[1] + 45);
+        threeControls.update();
+      }
+    }
+
+    // CANVAS ETKİLEŞİMLERİ (Pan, Zoom, Sürükle-Bırak Clamping)
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      const before = screenToWorld(e.clientX * window.devicePixelRatio, e.clientY * window.devicePixelRatio);
+      AppState.zoom = Math.max(0.05, Math.min(25.0, AppState.zoom * zoomFactor));
+      const after = screenToWorld(e.clientX * window.devicePixelRatio, e.clientY * window.devicePixelRatio);
+      AppState.panX += (after[0] - before[0]) * AppState.zoom;
+      AppState.panY += (after[1] - before[1]) * AppState.zoom;
+      updateScaleBar(); render2DCanvas();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', (e) => {
+      const worldPos = screenToWorld(e.clientX * window.devicePixelRatio, e.clientY * window.devicePixelRatio);
+      if (e.button === 0 && AppState.activeBuildingMass && isPointInPolygon(worldPos, AppState.activeBuildingMass)) {
+        AppState.isDraggingMass = true; AppState.dragStartX = worldPos[0]; AppState.dragStartY = worldPos[1];
+        canvas.style.cursor = 'grabbing'; return;
+      }
+      if (e.button === 0 && AppState.hoveredEdgeIndex !== -1) {
+        openEdgePopover(AppState.hoveredEdgeIndex, e.clientX, e.clientY); return;
+      }
+      AppState.isPanning = true; AppState.lastMouseX = e.clientX; AppState.lastMouseY = e.clientY;
+      canvas.style.cursor = 'move';
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!App.isDragging) return;
-      const zoom = map.getZoom();
-      const scale = Math.pow(2, zoom) / 2500;
+      const rect = canvas.getBoundingClientRect();
+      const sx = (e.clientX - rect.left) * window.devicePixelRatio, sy = (e.clientY - rect.top) * window.devicePixelRatio;
+      const worldPos = screenToWorld(sx, sy);
 
-      const dx = (e.clientX - App.dragStart.x) / scale;
-      const dy = -(e.clientY - App.dragStart.y) / scale;
+      if (AppState.isDraggingMass && AppState.activeBuildingMass) {
+        const dx = worldPos[0] - AppState.dragStartX, dy = worldPos[1] - AppState.dragStartY;
+        const candidate = AppState.activeBuildingMass.map(pt => [pt[0] + dx, pt[1] + dy]);
+        let inside = true;
+        for (let i = 0; i < candidate.length; i++) {
+          if (!isPointInPolygon(candidate[i], AppState.setbackPolygon)) { inside = false; break; }
+        }
+        if (inside) {
+          AppState.activeBuildingMass = candidate;
+          AppState.dragStartX = worldPos[0]; AppState.dragStartY = worldPos[1];
+          render2DCanvas();
+        }
+        return;
+      }
 
-      App.buildingPos.x += dx;
-      App.buildingPos.y += dy;
-      App.dragStart = { x: e.clientX, y: e.clientY };
-      render();
-    });
+      if (AppState.isPanning) {
+        AppState.panX += (e.clientX - AppState.lastMouseX);
+        AppState.panY -= (e.clientY - AppState.lastMouseY);
+        AppState.lastMouseX = e.clientX; AppState.lastMouseY = e.clientY;
+        render2DCanvas(); return;
+      }
 
-    window.addEventListener('mouseup', () => {
-      App.isDragging = false;
-    });
-
-    // -------------------------------------------------------------
-    // THREE.JS 3B SAHNE
-    // -------------------------------------------------------------
-    const threeContainer = document.getElementById('three-container');
-    let scene, camera, renderer, buildingMesh;
-
-    function initThree() {
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-      camera.position.set(0, -60, 45);
-      camera.up.set(0, 0, 1);
-
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      threeContainer.appendChild(renderer.domElement);
-
-      const light = new THREE.DirectionalLight(0xffffff, 1.2);
-      light.position.set(20, -30, 40);
-      scene.add(light);
-      scene.add(new THREE.AmbientLight(0x64748b, 0.8));
-
-      const grid = new THREE.GridHelper(100, 20, 0x475569, 0x1e293b);
-      grid.rotation.x = Math.PI / 2;
-      scene.add(grid);
-
-      build3DMass();
-      animateThree();
-    }
-
-    function build3DMass() {
-      if (buildingMesh) scene.remove(buildingMesh);
-
-      const shape = new THREE.Shape();
-      App.buildingPoly.forEach((p, i) => {
-        if (i === 0) shape.moveTo(p.x, p.y);
-        else shape.lineTo(p.x, p.y);
-      });
-
-      const extrudeSettings = { depth: 6.5, bevelEnabled: false };
-      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xf59e0b,
-        metalness: 0.2,
-        roughness: 0.4,
-        transparent: true,
-        opacity: 0.85
-      });
-
-      buildingMesh = new THREE.Mesh(geometry, material);
-      buildingMesh.position.set(App.buildingPos.x, App.buildingPos.y, 0.5);
-      scene.add(buildingMesh);
-    }
-
-    function animateThree() {
-      if (!App.is3D) return;
-      requestAnimationFrame(animateThree);
-      renderer.render(scene, camera);
-    }
-
-    document.getElementById('btn-toggle-3d').addEventListener('click', () => {
-      App.is3D = !App.is3D;
-      const btn = document.getElementById('btn-toggle-3d');
-      if (App.is3D) {
-        threeContainer.style.display = 'block';
-        btn.classList.add('bg-amber-600', 'text-white');
-        if (!scene) initThree();
-        else build3DMass();
-      } else {
-        threeContainer.style.display = 'none';
-        btn.classList.remove('bg-amber-600', 'text-white');
+      let hovered = -1;
+      const poly = AppState.localCoords;
+      if (poly.length >= 3 && !AppState.isFloorPlanMode) {
+        for (let i = 0; i < poly.length; i++) {
+          const s1 = worldToScreen(poly[i][0], poly[i][1]), s2 = worldToScreen(poly[(i+1)%poly.length][0], poly[(i+1)%poly.length][1]);
+          if (distToSegment([sx, sy], s1, s2) < 10 * window.devicePixelRatio) { hovered = i; break; }
+        }
+      }
+      if (hovered !== AppState.hoveredEdgeIndex) {
+        AppState.hoveredEdgeIndex = hovered;
+        canvas.style.cursor = hovered !== -1 ? 'pointer' : (AppState.activeBuildingMass && isPointInPolygon(worldPos, AppState.activeBuildingMass) ? 'grab' : 'crosshair');
+        render2DCanvas();
       }
     });
 
-    // -------------------------------------------------------------
-    // DXF VE OBJ ÇIKTILARI
-    // -------------------------------------------------------------
-    document.getElementById('btn-export-dxf').addEventListener('click', () => {
-      let dxf = "0\nSECTION\n2\nENTITIES\n";
-      App.parcelLocal.forEach((p, i) => {
-        const next = App.parcelLocal[(i + 1) % App.parcelLocal.length];
-        dxf += `0\nLINE\n8\nPARSEL_SINIRI\n10\n${p.x}\n20\n${p.y}\n30\n0.0\n11\n${next.x}\n21\n${next.y}\n31\n0.0\n`;
-      });
-      App.setbackPoly.forEach((p, i) => {
-        const next = App.setbackPoly[(i + 1) % App.setbackPoly.length];
-        dxf += `0\nLINE\n8\nCEKME_SINIRI\n10\n${p.x}\n20\n${p.y}\n30\n0.0\n11\n${next.x}\n21\n${next.y}\n31\n0.0\n`;
-      });
-      App.buildingPoly.forEach((p, i) => {
-        const next = App.buildingPoly[(i + 1) % App.buildingPoly.length];
-        dxf += `0\nLINE\n8\nYAPI_KUTLESI\n10\n${p.x + App.buildingPos.x}\n20\n${p.y + App.buildingPos.y}\n30\n0.0\n11\n${next.x + App.buildingPos.x}\n21\n${next.y + App.buildingPos.y}\n31\n0.0\n`;
-      });
-      dxf += "0\nENDSEC\n0\nEOF\n";
-      downloadFile(dxf, "KupKup_Parsel_Etut.dxf", "application/dxf");
-    });
+    window.addEventListener('mouseup', () => { AppState.isPanning = false; AppState.isDraggingMass = false; canvas.style.cursor = 'crosshair'; });
 
-    document.getElementById('btn-export-obj').addEventListener('click', () => {
-      let obj = "# KupKup 3D Massing Export\n";
-      App.buildingPoly.forEach(p => {
-        obj += `v ${p.x + App.buildingPos.x} ${p.y + App.buildingPos.y} 0.5\n`;
-      });
-      App.buildingPoly.forEach(p => {
-        obj += `v ${p.x + App.buildingPos.x} ${p.y + App.buildingPos.y} 6.5\n`;
-      });
-      obj += "f 1 2 3 4\nf 5 6 7 8\n";
-      downloadFile(obj, "KupKup_Model.obj", "text/plain");
-    });
-
-    function downloadFile(content, fileName, mimeType) {
-      const blob = new Blob([content], { type: mimeType });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = fileName;
-      link.click();
+    function distToSegment(p, v, w) {
+      const l2 = (v[0] - w[0])**2 + (v[1] - w[1])**2; if (l2 === 0) return Math.hypot(p[0] - v[0], p[1] - v[1]);
+      let t = Math.max(0, Math.min(1, ((p[0] - v[0]) * (w[0] - v[0]) + (p[1] - v[1]) * (w[1] - v[1])) / l2));
+      return Math.hypot(p[0] - (v[0] + t * (w[0] - v[0])), p[1] - (v[1] + t * (w[1] - v[1])));
     }
 
-    // Başlangıç
-    map.on('load', () => {
-      initLocalGeometry();
-      resize();
+    function openEdgePopover(edgeIndex, x, y) {
+      AppState.selectedEdgeIndex = edgeIndex;
+      const popover = document.getElementById('edgeContextPopover');
+      document.getElementById('popoverEdgeTitle').textContent = `Kenar #${edgeIndex + 1} Çekme`;
+      popover.style.left = `${Math.min(window.innerWidth - 260, x + 15)}px`;
+      popover.style.top = `${Math.min(window.innerHeight - 200, y + 15)}px`;
+      popover.classList.remove('hidden');
+    }
+    function closeEdgePopover() { document.getElementById('edgeContextPopover').classList.add('hidden'); AppState.selectedEdgeIndex = -1; }
+    document.getElementById('btnCloseEdgePopover').onclick = closeEdgePopover;
+
+    document.querySelectorAll('.btn-edge-preset').forEach(btn => {
+      btn.onclick = () => {
+        if (AppState.selectedEdgeIndex !== -1) {
+          AppState.edgeSetbacks[AppState.selectedEdgeIndex] = { type: btn.getAttribute('data-type'), distance: parseFloat(btn.getAttribute('data-val')) };
+          calculateSetbackPolygon(); generate10Variations(); renderEdgeSetbackList(); render2DCanvas(); closeEdgePopover();
+        }
+      };
     });
+
+    document.getElementById('btnApplyCustomEdge').onclick = () => {
+      const val = parseFloat(document.getElementById('inputCustomEdgeSetback').value);
+      if (!isNaN(val) && val >= 0 && AppState.selectedEdgeIndex !== -1) {
+        AppState.edgeSetbacks[AppState.selectedEdgeIndex] = { type: 'ozel', distance: val };
+        calculateSetbackPolygon(); generate10Variations(); renderEdgeSetbackList(); render2DCanvas(); closeEdgePopover();
+      }
+    };
+
+    function renderEdgeSetbackList() {
+      const list = document.getElementById('edgeSetbackList'); list.innerHTML = '';
+      AppState.edgeSetbacks.forEach((e, idx) => {
+        const p1 = AppState.localCoords[idx], p2 = AppState.localCoords[(idx + 1) % AppState.localCoords.length];
+        const lenM = (p1 && p2) ? Math.hypot(p2[0] - p1[0], p2[1] - p1[1]).toFixed(1) : '--';
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-1.5 rounded bg-cad-card/40 border border-slate-800 text-[10px] hover:border-sky-500 cursor-pointer transition';
+        row.innerHTML = `
+          <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full ${e.type === 'yol' ? 'bg-sky-400' : (e.type === 'arka' ? 'bg-amber-400' : 'bg-orange-400')}"></span><span class="font-mono text-slate-300">K-${idx + 1} (${lenM}m)</span></div>
+          <div class="flex items-center space-x-1"><span class="text-[9px] uppercase font-semibold text-slate-400">${e.type}</span><span class="font-mono font-bold text-white bg-slate-900 px-1 rounded">${e.distance}m</span></div>
+        `;
+        row.onclick = () => {
+          AppState.hoveredEdgeIndex = idx;
+          const s = worldToScreen((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2);
+          openEdgePopover(idx, s[0] / window.devicePixelRatio, s[1] / window.devicePixelRatio);
+          render2DCanvas();
+        };
+        list.appendChild(row);
+      });
+    }
+
+    function updateMetricsDisplay() {
+      const arsa = AppState.tapuAlani;
+      AppState.maxGroundArea = Math.round(arsa * AppState.taks * 10) / 10;
+      AppState.maxTotalArea = Math.round(arsa * AppState.kaks * 10) / 10;
+      const curGround = AppState.activeBuildingMass ? calculateShoelaceArea(AppState.activeBuildingMass) : 0;
+      const curTotal = curGround * AppState.katSayisi;
+
+      document.getElementById('txtArsaAlani').textContent = `${arsa.toLocaleString('tr-TR')} m²`;
+      document.getElementById('txtCekmeAlani').textContent = `${Math.round(AppState.setbackArea)} m²`;
+      document.getElementById('txtIzinliTaban').textContent = `${AppState.maxGroundArea} m²`;
+      document.getElementById('txtMevcutTaban').textContent = `${Math.round(curGround * 10) / 10} m²`;
+      document.getElementById('txtToplamInsaat').textContent = `${Math.round(curTotal * 10) / 10} / ${AppState.maxTotalArea} m²`;
+      document.getElementById('txtNetBahceAlani').textContent = `${Math.round(Math.max(0, arsa - curGround) * 10) / 10} m²`;
+
+      const warn = document.getElementById('badgeTaksWarning');
+      const cardM = document.getElementById('cardMevcutTaban');
+      if (curGround > AppState.maxGroundArea + 0.1) {
+        warn.classList.remove('hidden'); cardM.className = 'bg-red-950/80 border border-red-500 rounded px-2.5 py-1 transition';
+      } else {
+        warn.classList.add('hidden'); cardM.className = 'bg-cad-panel/80 border border-cad-border rounded px-2.5 py-1 transition';
+      }
+      if (AppState.dom) {
+        document.getElementById('projectionBadge').classList.remove('hidden');
+        document.getElementById('txtDOM').textContent = `${AppState.dom}°`;
+      }
+    }
+
+    // EXPORT ENGINE (DXF, SVG, PDF, OBJ)
+    document.getElementById('btnExportDXF').onclick = () => {
+      if (AppState.localCoords.length < 3) { alert("Lütfen önce bir arsa sorgulayınız."); return; }
+      let dxf = "0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n";
+      dxf += "0\nLAYER\n2\nPARSEL_SINIRI\n70\n0\n62\n7\n6\nCONTINUOUS\n";
+      dxf += "0\nLAYER\n2\nCEKME_SINIRI\n70\n0\n62\n1\n6\nDASHED\n";
+      dxf += "0\nLAYER\n2\nYAPI_KUTLESI\n70\n0\n62\n4\n6\nCONTINUOUS\n";
+      dxf += "0\nLAYER\n2\nDUVARLAR_DIS_20CM\n70\n0\n62\n5\n6\nCONTINUOUS\n";
+      dxf += "0\nLAYER\n2\nDUVARLAR_IC_10CM\n70\n0\n62\n6\n6\nCONTINUOUS\n";
+      dxf += "0\nLAYER\n2\nOLCULER_VE_METINLER\n70\n0\n62\n3\n6\nCONTINUOUS\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+
+      dxf += formatDXFPolyline("PARSEL_SINIRI", AppState.localCoords, 7);
+      if (AppState.setbackPolygon.length > 2) dxf += formatDXFPolyline("CEKME_SINIRI", AppState.setbackPolygon, 1);
+      if (AppState.activeBuildingMass) {
+        dxf += formatDXFPolyline("YAPI_KUTLESI", AppState.activeBuildingMass, 4);
+        const c = getCentroid(AppState.activeBuildingMass);
+        dxf += `0\nTEXT\n8\nOLCULER_VE_METINLER\n10\n${c[0]}\n20\n${c[1]}\n30\n0.0\n40\n0.8\n1\nYAPI TABANI: ${Math.round(calculateShoelaceArea(AppState.activeBuildingMass))} m2\n`;
+      }
+      dxf += "0\nENDSEC\n0\nEOF\n";
+      downloadBlob(dxf, `KUPKUP_${AppState.ada || 'Ada'}_${AppState.parsel || 'Parsel'}.dxf`, 'application/dxf');
+    };
+
+    function formatDXFPolyline(layer, coords, color) {
+      let out = `0\nPOLYLINE\n8\n${layer}\n62\n${color}\n66\n1\n70\n1\n`;
+      coords.forEach(pt => { out += `0\nVERTEX\n8\n${layer}\n10\n${pt[0].toFixed(3)}\n20\n${pt[1].toFixed(3)}\n30\n0.0\n`; });
+      out += "0\nSEQEND\n"; return out;
+    }
+
+    document.getElementById('btnExportSVG').onclick = () => {
+      if (AppState.localCoords.length < 3) return;
+      const box = getBoundingBox(AppState.localCoords);
+      let svg = `<?xml version="1.0" standalone="no"?>\n<svg width="800" height="600" viewBox="${box.minX-10} ${-box.maxY-10} ${box.width+20} ${box.height+20}" xmlns="http://www.w3.org/2000/svg" style="background:#080c14;">\n`;
+      svg += `<polygon points="${AppState.localCoords.map(p => `${p[0]},${-p[1]}`).join(' ')}" fill="none" stroke="#ffffff" stroke-width="0.3"/>\n`;
+      if (AppState.setbackPolygon.length > 2) svg += `<polygon points="${AppState.setbackPolygon.map(p => `${p[0]},${-p[1]}`).join(' ')}" fill="rgba(245, 158, 11, 0.05)" stroke="#f59e0b" stroke-width="0.2" stroke-dasharray="1,1"/>\n`;
+      if (AppState.activeBuildingMass) svg += `<polygon points="${AppState.activeBuildingMass.map(p => `${p[0]},${-p[1]}`).join(' ')}" fill="rgba(56, 189, 248, 0.4)" stroke="#38bdf8" stroke-width="0.3"/>\n`;
+      svg += `</svg>`;
+      downloadBlob(svg, `KUPKUP_${AppState.ada || 'Ada'}_${AppState.parsel || 'Parsel'}.svg`, 'image/svg+xml');
+    };
+
+    document.getElementById('btnExportPDF').onclick = () => window.print();
+
+    document.getElementById('btnExportOBJ').onclick = () => {
+      const mass = AppState.activeBuildingMass; if (!mass || mass.length < 3) return;
+      let obj = "# KÜPKÜP 3D Kütle Modeli\n"; const n = mass.length; let vertCount = 1;
+      for (let f = 0; f < AppState.katSayisi; f++) {
+        const y0 = f * 3.0, y1 = (f + 1) * 3.0;
+        obj += `g Kat_${f + 1}\n`;
+        mass.forEach(p => { obj += `v ${p[0].toFixed(3)} ${y0.toFixed(3)} ${(-p[1]).toFixed(3)}\n`; });
+        mass.forEach(p => { obj += `v ${p[0].toFixed(3)} ${y1.toFixed(3)} ${(-p[1]).toFixed(3)}\n`; });
+        for (let i = 0; i < n; i++) {
+          const next = (i + 1) % n; const a = vertCount + i, b = vertCount + next, c = vertCount + n + next, d = vertCount + n + i;
+          obj += `f ${a} ${b} ${c}\nf ${a} ${c} ${d}\n`;
+        }
+        vertCount += n * 2;
+      }
+      downloadBlob(obj, `KUPKUP_${AppState.ada || 'Ada'}_${AppState.parsel || 'Parsel'}.obj`, 'text/plain');
+    };
+
+    function downloadBlob(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType }); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    // UI DÜĞME VE ETKİNLİK BAĞLANTILARI
+    document.getElementById('btnView2D').onclick = () => {
+      AppState.viewMode = '2D';
+      document.getElementById('btnView2D').className = 'px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 font-bold flex items-center space-x-1.5 transition';
+      document.getElementById('btnView3D').className = 'px-3 py-1.5 rounded-md text-cad-muted hover:text-white flex items-center space-x-1.5 transition';
+      document.getElementById('cadCanvas').classList.remove('hidden'); document.getElementById('threeContainer').classList.add('hidden');
+      render2DCanvas();
+    };
+    document.getElementById('btnView3D').onclick = () => {
+      AppState.viewMode = '3D';
+      document.getElementById('btnView3D').className = 'px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 font-bold flex items-center space-x-1.5 transition';
+      document.getElementById('btnView2D').className = 'px-3 py-1.5 rounded-md text-cad-muted hover:text-white flex items-center space-x-1.5 transition';
+      document.getElementById('cadCanvas').classList.add('hidden'); document.getElementById('threeContainer').classList.remove('hidden');
+      if (!threeScene) initThreeJS(); render3DScene();
+    };
+
+    document.getElementById('btnZoomIn').onclick = () => { AppState.zoom *= 1.25; updateScaleBar(); render2DCanvas(); };
+    document.getElementById('btnZoomOut').onclick = () => { AppState.zoom *= 0.8; updateScaleBar(); render2DCanvas(); };
+    document.getElementById('btnZoomExtents').onclick = zoomExtents;
+
+    document.getElementById('btnEnterFloorPlan').onclick = enterFloorPlanMode;
+    document.getElementById('btnExitFloorPlan').onclick = exitFloorPlanMode;
+    document.getElementById('btnRotateLeft90').onclick = () => rotateFloorPlan(-90);
+    document.getElementById('btnRotateRight90').onclick = () => rotateFloorPlan(90);
+
+    document.querySelectorAll('.btn-tipo').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.btn-tipo').forEach(b => b.className = 'btn-tipo p-1.5 rounded bg-cad-card border border-cad-border text-cad-muted hover:text-white flex flex-col items-center');
+        btn.className = 'btn-tipo p-1.5 rounded bg-sky-950 border border-sky-500 text-sky-300 font-bold flex flex-col items-center';
+        AppState.typology = btn.getAttribute('data-type');
+        document.getElementById('panelSingleBlock').classList.toggle('hidden', AppState.typology !== 'single');
+        document.getElementById('panelTwinBlock').classList.toggle('hidden', AppState.typology !== 'twin');
+        document.getElementById('panelMultiBlock').classList.toggle('hidden', AppState.typology !== 'multi');
+        generate10Variations();
+      };
+    });
+
+    document.querySelectorAll('.btn-form').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.btn-form').forEach(b => b.className = 'btn-form p-1.5 bg-cad-card border border-cad-border text-cad-muted hover:text-white rounded font-semibold text-center');
+        btn.className = 'btn-form p-1.5 bg-sky-950 border border-sky-500 text-sky-300 rounded font-semibold text-center';
+        AppState.formTemplate = btn.getAttribute('data-form');
+        generate10Variations();
+      };
+    });
+
+    document.getElementById('btnGenerateVariations').onclick = generate10Variations;
+
+    document.getElementById('inputTaks').oninput = e => { AppState.taks = parseFloat(e.target.value) || 0.40; updateMetricsDisplay(); generate10Variations(); };
+    document.getElementById('inputKaks').oninput = e => { AppState.kaks = parseFloat(e.target.value) || 1.20; updateMetricsDisplay(); generate10Variations(); };
+    document.getElementById('selKatSayisi').onchange = e => { AppState.katSayisi = parseInt(e.target.value) || 2; updateMetricsDisplay(); generate10Variations(); };
+
+    const chkRules = document.getElementById('chkRulesActive');
+    const lblRules = document.getElementById('lblRulesState');
+    const chkModalRules = document.getElementById('chkModalRulesActive');
+    function setRulesActive(state) {
+      AppState.rulesActive = state; chkRules.checked = state; chkModalRules.checked = state;
+      lblRules.textContent = state ? "AÇIK" : "KAPALI";
+      lblRules.className = `ml-1 text-[9px] font-mono ${state ? 'text-emerald-400 font-bold' : 'text-cad-muted'}`;
+      generate10Variations();
+    }
+    chkRules.onchange = e => setRulesActive(e.target.checked);
+    chkModalRules.onchange = e => setRulesActive(e.target.checked);
+
+    const modalKurallar = document.getElementById('modalKurallar');
+    document.getElementById('btnOpenKurallarModal').onclick = () => modalKurallar.classList.remove('hidden');
+    document.getElementById('btnCloseKurallarModal').onclick = () => modalKurallar.classList.add('hidden');
+    document.getElementById('btnSaveKurallar').onclick = () => {
+      AppState.rules.minBlockDistance = parseFloat(document.getElementById('ruleMinBlockDist').value) || 6.0;
+      AppState.rules.minEdgeLength = parseFloat(document.getElementById('ruleMinEdgeLength').value) || 4.0;
+      AppState.rules.minStairArea = parseFloat(document.getElementById('ruleMinStairArea').value) || 8.0;
+      modalKurallar.classList.add('hidden'); generate10Variations();
+    };
+
+    document.querySelectorAll('.btn-rule-tab').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.btn-rule-tab').forEach(b => b.className = 'btn-rule-tab px-3 py-1.5 border-b-2 border-transparent text-cad-muted hover:text-white font-medium text-xs');
+        btn.className = 'btn-rule-tab px-3 py-1.5 border-b-2 border-sky-400 text-sky-400 font-bold text-xs';
+        document.querySelectorAll('.rule-tab-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById(btn.getAttribute('data-tab')).classList.remove('hidden');
+      };
+    });
+
+    const modalYonetmelik = document.getElementById('modalYonetmelik');
+    document.getElementById('btnOpenYonetmelikModal').onclick = () => modalYonetmelik.classList.remove('hidden');
+    document.getElementById('btnCloseYonetmelikModal').onclick = () => modalYonetmelik.classList.add('hidden');
+    document.getElementById('btnCloseYonetmelik').onclick = () => modalYonetmelik.classList.add('hidden');
+
+    const modalImarDoc = document.getElementById('modalImarDoc');
+    document.getElementById('btnOpenImarDocModal').onclick = () => modalImarDoc.classList.remove('hidden');
+    document.getElementById('btnCloseImarDocModal').onclick = () => modalImarDoc.classList.add('hidden');
+    document.getElementById('btnSaveImarDoc').onclick = () => modalImarDoc.classList.add('hidden');
+
+    const modalDrone = document.getElementById('modalDrone');
+    document.getElementById('btnOpenDroneModal').onclick = () => modalDrone.classList.remove('hidden');
+    document.getElementById('btnCloseDroneModal').onclick = () => modalDrone.classList.add('hidden');
+    document.getElementById('btnApplyDroneOverlay').onclick = () => { AppState.droneActive = true; modalDrone.classList.add('hidden'); render2DCanvas(); };
+
+    document.getElementById('selQuickSample').onchange = (e) => {
+      const key = e.target.value; if (key && SAMPLES[key]) loadParcelData(SAMPLES[key]);
+    };
+
+    document.getElementById('btnSorgula').onclick = () => {
+      const ada = document.getElementById('inputAda').value, parsel = document.getElementById('inputParsel').value;
+      if (!ada || !parsel) { alert("Lütfen en az Ada ve Parsel numarası giriniz."); return; }
+      loadParcelData(SAMPLES.bursa);
+    };
+
+    function loadParcelData(data) {
+      AppState.il = data.il; AppState.ilce = data.ilce; AppState.mahalle = data.mahalle; AppState.ada = data.ada; AppState.parsel = data.parsel;
+      AppState.taks = data.taks || 0.40; AppState.kaks = data.kaks || 1.20; AppState.katSayisi = data.kat || 2;
+      document.getElementById('selIl').value = data.il;
+      document.getElementById('inputAda').value = data.ada;
+      document.getElementById('inputParsel').value = data.parsel;
+      document.getElementById('inputTaks').value = AppState.taks;
+      document.getElementById('inputKaks').value = AppState.kaks;
+      document.getElementById('selKatSayisi').value = AppState.katSayisi;
+
+      processWGS84ToLocalCAD(data.wgs84, data.tapuAlani);
+      initializeDefaultSetbacks();
+      if (data.edgeTypes) {
+        data.edgeTypes.forEach((t, i) => {
+          if (AppState.edgeSetbacks[i]) {
+            AppState.edgeSetbacks[i].type = t;
+            AppState.edgeSetbacks[i].distance = t === 'yol' ? 5.0 : 3.0;
+          }
+        });
+        calculateSetbackPolygon(); renderEdgeSetbackList();
+      }
+      generate10Variations();
+      document.getElementById('statusText').textContent = `${data.il}, ${data.ilce} | ${data.ada} Ada / ${data.parsel} Parsel Yüklendi (${AppState.tapuAlani} m²)`;
+      updateMetricsDisplay();
+      zoomExtents();
+    }
+
+    resizeCanvas();
+    initThreeJS();
   </script>
 </body>
 </html>
